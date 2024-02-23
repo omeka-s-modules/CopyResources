@@ -18,17 +18,18 @@ class Module extends AbstractModule
             'Omeka\Controller\Admin\Item',
             'view.browse.actions',
             function (Event $event) {
-                $view = $event->getTarget();
                 $resource = $event->getParam('resource');
-                if ($resource->userIsAllowed('create')) {
-                    echo sprintf('<li>%s</li>', $view->hyperlink('', '#', [
-                        'data-sidebar-selector' => '#sidebar',
-                        'data-sidebar-content-url' => $resource->url('delete-confirm'),
-                        'class' => 'fas fa-copy sidebar-content',
-                        'title' => $view->translate('Copy'),
-                        'aria-label' => $view->translate('Copy'),
-                    ]));
+                if (!$resource->userIsAllowed('create')) {
+                    return;
                 }
+                $view = $event->getTarget();
+                echo sprintf('<li>%s</li>', $view->hyperlink('', '#', [
+                    'data-sidebar-selector' => '#sidebar',
+                    'data-sidebar-content-url' => $view->url('admin/copy-resources', ['action' => 'copy-confirm', 'resource' => 'items', 'id' => $resource->id()]),
+                    'class' => 'fas fa-copy sidebar-content',
+                    'title' => $view->translate('Copy'),
+                    'aria-label' => $view->translate('Copy'),
+                ]));
             }
         );
     }

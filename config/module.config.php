@@ -13,6 +13,11 @@ return [
             ],
         ],
     ],
+    'view_manager' => [
+        'template_path_stack' => [
+            sprintf('%s/../view', __DIR__),
+        ],
+    ],
     'service_manager' => [
         'factories' => [
             'CopyResources\CopyResources' => Service\Stdlib\CopyResourcesFactory::class,
@@ -30,15 +35,15 @@ return [
                     'copy-resources' => [
                         'type' => Http\Segment::class,
                         'options' => [
-                            'route' => '/copy-resources/:resource/:id',
+                            'route' => '/copy-resources/:action/:resource/:id',
                             'constraints' => [
+                                'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
                                 'resource' => '[a-zA-Z0-9_-]+',
                                 'id' => '\d+',
                             ],
                             'defaults' => [
                                 '__NAMESPACE__' => 'CopyResources\Controller\Admin',
                                 'controller' => 'index',
-                                'action' => 'index',
                             ],
                         ],
                     ],
