@@ -35,10 +35,10 @@ return [
                     'copy-resources' => [
                         'type' => Http\Segment::class,
                         'options' => [
-                            'route' => '/copy-resources/:action/:resource/:id',
+                            'route' => '/copy-resources/:action/:resource-name/:id',
                             'constraints' => [
                                 'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
-                                'resource' => '[a-zA-Z0-9_-]+',
+                                'resource-name' => '[a-zA-Z0-9_-]+',
                                 'id' => '\d+',
                             ],
                             'defaults' => [

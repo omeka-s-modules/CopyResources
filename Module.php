@@ -25,7 +25,7 @@ class Module extends AbstractModule
                 $view = $event->getTarget();
                 echo sprintf('<li>%s</li>', $view->hyperlink('', '#', [
                     'data-sidebar-selector' => '#sidebar',
-                    'data-sidebar-content-url' => $view->url('admin/copy-resources', ['action' => 'copy-confirm', 'resource' => 'items', 'id' => $resource->id()]),
+                    'data-sidebar-content-url' => $view->url('admin/copy-resources', ['action' => 'copy-confirm', 'resource-name' => 'items', 'id' => $resource->id()]),
                     'class' => 'fas fa-copy sidebar-content',
                     'title' => $view->translate('Copy'),
                     'aria-label' => $view->translate('Copy'),

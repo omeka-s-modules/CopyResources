@@ -1,10 +1,11 @@
 <?php
 namespace CopyResources\Controller\Admin;
 
+use CopyResources\Form\CopyConfirmForm;
 use CopyResources\Stdlib\CopyResources;
 use Laminas\Mvc\Controller\AbstractActionController;
 use Laminas\View\Model\ViewModel;
-use Omeka\Form\ConfirmForm;
+use Omeka\Mvc\Exception\RuntimeException;
 
 class IndexController extends AbstractActionController
 {
@@ -17,27 +18,28 @@ class IndexController extends AbstractActionController
 
     public function copyConfirmAction()
     {
-        $resourceName = $this->params('resource');
+        $resourceName = $this->params('resource-name');
         $resourceId = $this->params('id');
 
-        if (!in_array($resourceName, ['items'])) {
-            return $this->redirect()->toRoute('admin');
+        // Validate resource name and set resource-specific variables.
+        switch ($resourceName) {
+            case 'items':
+                $template = 'common/copy-resources/copy-item-confirm';
+                break;
+            default:
+                throw new RuntimeException('Invalid resource');
         }
 
         $resource = $this->api()->read($resourceName, $resourceId)->getContent();
 
-        $form = $this->getForm(ConfirmForm::class);
+        $form = $this->getForm(CopyConfirmForm::class, ['resourceName' => $resourceName]);
         $form->setAttribute('action', $this->url()->fromRoute(null, ['action' => 'copy'], true));
-        $form->setButtonLabel($this->translate('Confirm copy'));
 
         $view = new ViewModel;
         $view->setTerminal(true);
-        $view->setTemplate('common/copy-resources-confirm');
-        $view->setVariable('resourceName', $resourceName);
-        $view->setVariable('resourceId', $resourceId);
-        $view->setVariable('resource', $resource);
+        $view->setTemplate($template);
         $view->setVariable('form', $form);
-        $view->setVariable('linkTitle', true); // show-details.phtml needs this
+        $view->setVariable('resource', $resource);
         return $view;
     }
 
@@ -47,22 +49,27 @@ class IndexController extends AbstractActionController
             return $this->redirect()->toRoute('admin');
         }
 
-        $resourceName = $this->params('resource');
+        $resourceName = $this->params('resource-name');
         $resourceId = $this->params('id');
 
-        if (!in_array($resourceName, ['items'])) {
-            return $this->redirect()->toRoute('admin');
+        // Validate resource name and set resource-specific variables.
+        switch ($resourceName) {
+            case 'items':
+                break;
+            default:
+                throw new RuntimeException('Invalid resource');
         }
 
         $resource = $this->api()->read($resourceName, $resourceId)->getContent();
 
-        $form = $this->getForm(ConfirmForm::class);
+        $form = $this->getForm(CopyConfirmForm::class, ['resourceName' => $resourceName]);
         $form->setData($this->params()->fromPost());
 
         if ($form->isValid()) {
             // @todo: copy resource
-            $this->messenger()->addSuccess('Resource successfully copied'); // @translate
-            return $this->redirect()->toRoute('admin/id', ['controller' => 'item', 'action' => 'show', 'id' => 22705]);
+            $resourceCopyId = 22705;
+            $this->messenger()->addSuccess('Resource successfully copied. The copy is below.'); // @translate
+            return $this->redirect()->toRoute('admin/id', ['controller' => 'item', 'action' => 'show', 'id' => $resourceCopyId]);
         } else {
             return $this->redirect()->toRoute('admin');
         }
