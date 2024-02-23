@@ -55,6 +55,9 @@ class IndexController extends AbstractActionController
         // Validate resource name and set resource-specific variables.
         switch ($resourceName) {
             case 'items':
+                $copyMethod = 'copyItem';
+                $controller = 'item';
+                $action = 'show';
                 break;
             default:
                 throw new RuntimeException('Invalid resource');
@@ -66,10 +69,9 @@ class IndexController extends AbstractActionController
         $form->setData($this->params()->fromPost());
 
         if ($form->isValid()) {
-            // @todo: copy resource
-            $resourceCopyId = 22705;
+            $resourceCopy = $this->copyResources->$copyMethod($resource);
             $this->messenger()->addSuccess('Resource successfully copied. The copy is below.'); // @translate
-            return $this->redirect()->toRoute('admin/id', ['controller' => 'item', 'action' => 'show', 'id' => $resourceCopyId]);
+            return $this->redirect()->toRoute('admin/id', ['controller' => $controller, 'action' => $action, 'id' => $resourceCopy->id()]);
         } else {
             return $this->redirect()->toRoute('admin');
         }

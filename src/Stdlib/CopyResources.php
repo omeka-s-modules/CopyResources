@@ -1,17 +1,28 @@
 <?php
 namespace CopyResources\Stdlib;
 
-use Zend\ServiceManager\ServiceLocatorInterface;
+use Omeka\Api\Representation\ItemRepresentation;
+use Laminas\ServiceManager\ServiceLocatorInterface;
 
 class CopyResources
 {
     protected $services;
 
-    protected $entityManager;
+    protected $api;
 
     public function __construct(ServiceLocatorInterface $services)
     {
         $this->services = $services;
-        $this->entityManager = $this->services->get('Omeka\EntityManager');
+        $this->api = $this->services->get('Omeka\ApiManager');
+    }
+
+    public function copyItem(ItemRepresentation $item)
+    {
+        $jsonLd = json_decode(json_encode($item), true);
+        $jsonLd['o:owner'] = null;
+        $jsonLd['o:primary_media'] = null;
+        $jsonLd['o:media'] = [];
+        $itemCopy = $this->api->create('items', $jsonLd)->getContent();
+        return $itemCopy;
     }
 }
