@@ -24,6 +24,7 @@ class CopyConfirmForm extends Form
             'name' => 'submit',
             'attributes' => [
                 'value' => 'Confirm copy', // @translate
+                'style' => 'background-color: #676767; border-color: #676767; color: #fff;',
             ],
         ]);
     }
