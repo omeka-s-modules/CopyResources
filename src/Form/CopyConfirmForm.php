@@ -13,6 +13,9 @@ class CopyConfirmForm extends Form
             case 'items':
                 // No form elements for item.
                 break;
+            case 'item_sets':
+                // No form elements for item set.
+                break;
             default:
                 throw new RuntimeException('Invalid resource');
         }

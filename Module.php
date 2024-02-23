@@ -32,5 +32,23 @@ class Module extends AbstractModule
                 ]));
             }
         );
+        $sharedEventManager->attach(
+            'Omeka\Controller\Admin\ItemSet',
+            'view.browse.actions',
+            function (Event $event) {
+                $resource = $event->getParam('resource');
+                if (!$resource->userIsAllowed('create')) {
+                    return;
+                }
+                $view = $event->getTarget();
+                echo sprintf('<li>%s</li>', $view->hyperlink('', '#', [
+                    'data-sidebar-selector' => '#sidebar',
+                    'data-sidebar-content-url' => $view->url('admin/copy-resources', ['action' => 'copy-confirm', 'resource-name' => 'item_sets', 'id' => $resource->id()]),
+                    'class' => 'fas fa-copy sidebar-content',
+                    'title' => $view->translate('Copy'),
+                    'aria-label' => $view->translate('Copy'),
+                ]));
+            }
+        );
     }
 }

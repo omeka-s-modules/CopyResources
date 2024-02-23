@@ -26,6 +26,9 @@ class IndexController extends AbstractActionController
             case 'items':
                 $template = 'common/copy-resources/copy-item-confirm';
                 break;
+            case 'item_sets':
+                $template = 'common/copy-resources/copy-item-set-confirm';
+                break;
             default:
                 throw new RuntimeException('Invalid resource');
         }
@@ -57,6 +60,11 @@ class IndexController extends AbstractActionController
             case 'items':
                 $copyMethod = 'copyItem';
                 $controller = 'item';
+                $action = 'show';
+                break;
+            case 'item_sets':
+                $copyMethod = 'copyItemSet';
+                $controller = 'item-set';
                 $action = 'show';
                 break;
             default:
