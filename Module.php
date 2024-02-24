@@ -19,6 +19,7 @@ class Module extends AbstractModule
             ['controller' => 'Omeka\Controller\Admin\Item', 'resource_name' => 'items'],
             ['controller' => 'Omeka\Controller\Admin\ItemSet', 'resource_name' => 'item_sets'],
             ['controller' => 'Omeka\Controller\SiteAdmin\Page', 'resource_name' => 'site_pages'],
+            ['controller' => 'Omeka\Controller\SiteAdmin\Index', 'resource_name' => 'sites'],
         ];
         foreach ($browseCopyActions as $browseCopyAction) {
             $sharedEventManager->attach(

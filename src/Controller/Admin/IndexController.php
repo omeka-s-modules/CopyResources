@@ -21,7 +21,7 @@ class IndexController extends AbstractActionController
         $resourceName = $this->params('resource-name');
         $resourceId = $this->params('id');
 
-        if (!in_array($resourceName, ['items', 'item_sets', 'site_pages'])) {
+        if (!in_array($resourceName, ['items', 'item_sets', 'site_pages', 'sites'])) {
             throw new RuntimeException('Invalid resource name');
         }
 
@@ -47,7 +47,7 @@ class IndexController extends AbstractActionController
         $resourceName = $this->params('resource-name');
         $resourceId = $this->params('id');
 
-        if (!in_array($resourceName, ['items', 'item_sets', 'site_pages'])) {
+        if (!in_array($resourceName, ['items', 'item_sets', 'site_pages', 'sites'])) {
             throw new RuntimeException('Invalid resource name');
         }
 
@@ -70,6 +70,10 @@ class IndexController extends AbstractActionController
                     $resourceCopy = $this->copyResources->copySitePage($resource);
                     $this->messenger()->addSuccess('Page successfully copied. The copy is below.'); // @translate
                     return $this->redirect()->toRoute('admin/site/slug/page/default', ['site-slug' => $resourceCopy->site()->slug(), 'page-slug' => $resourceCopy->slug()]);
+                case 'sites':
+                    $resourceCopy = $this->copyResources->copySite($resource);
+                    $this->messenger()->addSuccess('Site successfully copied. The copy is below.'); // @translate
+                    return $this->redirect()->toRoute('admin/site/slug', ['site-slug' => $resourceCopy->slug()]);
             }
         } else {
             // Redirect to the previous page.

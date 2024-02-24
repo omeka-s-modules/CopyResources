@@ -8,20 +8,8 @@ class CopyConfirmForm extends Form
 {
     public function init()
     {
-        // Add resource-specific form elements.
-        switch ($this->getOption('resourceName')) {
-            case 'items':
-                // No form elements for item.
-                break;
-            case 'item_sets':
-                // No form elements for item set.
-                break;
-            case 'site_pages':
-                // No form elements for item set.
-                break;
-            default:
-                throw new RuntimeException('Invalid resource');
-        }
+        // Note that we can add resource-specific form elements with the passed
+        // "resourceName" option, using `$this->getOption('resourceName')`.
         $this->add([
             'type' => 'submit',
             'name' => 'submit',
