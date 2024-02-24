@@ -10,10 +10,13 @@ class CopyResources
 
     protected $api;
 
+    protected $entityManager;
+
     public function __construct(ServiceLocatorInterface $services)
     {
         $this->services = $services;
         $this->api = $this->services->get('Omeka\ApiManager');
+        $this->entityManager = $this->services->get('Omeka\EntityManager');
     }
 
     public function copyItem(Representation\ItemRepresentation $item)
@@ -32,5 +35,22 @@ class CopyResources
         $jsonLd['o:owner'] = null;
         $itemSetCopy = $this->api->create('item_sets', $jsonLd)->getContent();
         return $itemSetCopy;
+    }
+
+    public function copySitePage(Representation\SitePageRepresentation $sitePage)
+    {
+        // The slug must be unique. Get the copy iteration.
+        $i = 0;
+        do {
+            $hasSitePage = $this->entityManager
+                ->getRepository('Omeka\Entity\SitePage')
+                ->findOneBy(['slug' => sprintf('%s-%s', $sitePage->slug(), ++$i)]);
+        } while ($hasSitePage);
+
+        $jsonLd = json_decode(json_encode($sitePage), true);
+        // Append the copy iteration to the slug.
+        $jsonLd['o:slug'] = sprintf('%s-%s', $sitePage->slug(), $i);
+        $sitePageCopy = $this->api->create('site_pages', $jsonLd)->getContent();
+        return $sitePageCopy;
     }
 }

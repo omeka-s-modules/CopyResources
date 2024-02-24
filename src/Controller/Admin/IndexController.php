@@ -21,16 +21,8 @@ class IndexController extends AbstractActionController
         $resourceName = $this->params('resource-name');
         $resourceId = $this->params('id');
 
-        // Validate resource name and set resource-specific variables.
-        switch ($resourceName) {
-            case 'items':
-                $template = 'common/copy-resources/copy-item-confirm';
-                break;
-            case 'item_sets':
-                $template = 'common/copy-resources/copy-item-set-confirm';
-                break;
-            default:
-                throw new RuntimeException('Invalid resource');
+        if (!in_array($resourceName, ['items', 'item_sets', 'site_pages'])) {
+            throw new RuntimeException('Invalid resource name');
         }
 
         $resource = $this->api()->read($resourceName, $resourceId)->getContent();
@@ -40,7 +32,7 @@ class IndexController extends AbstractActionController
 
         $view = new ViewModel;
         $view->setTerminal(true);
-        $view->setTemplate($template);
+        $view->setTemplate(sprintf('common/copy-resources/copy-confirm-%s', $resourceName));
         $view->setVariable('form', $form);
         $view->setVariable('resource', $resource);
         return $view;
@@ -55,20 +47,8 @@ class IndexController extends AbstractActionController
         $resourceName = $this->params('resource-name');
         $resourceId = $this->params('id');
 
-        // Validate resource name and set resource-specific variables.
-        switch ($resourceName) {
-            case 'items':
-                $copyMethod = 'copyItem';
-                $controller = 'item';
-                $action = 'show';
-                break;
-            case 'item_sets':
-                $copyMethod = 'copyItemSet';
-                $controller = 'item-set';
-                $action = 'show';
-                break;
-            default:
-                throw new RuntimeException('Invalid resource');
+        if (!in_array($resourceName, ['items', 'item_sets', 'site_pages'])) {
+            throw new RuntimeException('Invalid resource name');
         }
 
         $resource = $this->api()->read($resourceName, $resourceId)->getContent();
@@ -77,11 +57,24 @@ class IndexController extends AbstractActionController
         $form->setData($this->params()->fromPost());
 
         if ($form->isValid()) {
-            $resourceCopy = $this->copyResources->$copyMethod($resource);
-            $this->messenger()->addSuccess('Resource successfully copied. The copy is below.'); // @translate
-            return $this->redirect()->toRoute('admin/id', ['controller' => $controller, 'action' => $action, 'id' => $resourceCopy->id()]);
+            switch ($resourceName) {
+                case 'items':
+                    $resourceCopy = $this->copyResources->copyItem($resource);
+                    $this->messenger()->addSuccess('Item successfully copied. The copy is below.'); // @translate
+                    return $this->redirect()->toRoute('admin/id', ['controller' => 'item', 'action' => 'show', 'id' => $resourceCopy->id()]);
+                case 'item_sets':
+                    $resourceCopy = $this->copyResources->copyItemSet($resource);
+                    $this->messenger()->addSuccess('Item set successfully copied. The copy is below.'); // @translate
+                    return $this->redirect()->toRoute('admin/id', ['controller' => 'item-set', 'action' => 'show', 'id' => $resourceCopy->id()]);
+                case 'site_pages':
+                    $resourceCopy = $this->copyResources->copySitePage($resource);
+                    $this->messenger()->addSuccess('Page successfully copied. The copy is below.'); // @translate
+                    return $this->redirect()->toRoute('admin/site/slug/page/default', ['site-slug' => $resourceCopy->site()->slug(), 'page-slug' => $resourceCopy->slug()]);
+            }
         } else {
-            return $this->redirect()->toRoute('admin');
+            // Redirect to the previous page.
+            $url = $this->getRequest()->getHeader('Referer')->getUri();
+            return $this->redirect()->toUrl($url);
         }
     }
 }
