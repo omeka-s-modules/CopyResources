@@ -99,7 +99,39 @@ class CopyResources
             $query->execute();
         }
 
-        // @todo: Add navigation to the site.
+        // Add navigation to the site.
+
+        // Recursive function to prepare the navigation array.
+        $getLinks = function($links) use ($sitePageMap, &$getLinks) {
+            foreach ($links as $link) {
+                // We must restrict links to the native link types because links
+                // introduced by modules likely contain data that are valid only
+                // within the original site.
+                if (in_array($link['type'], ['browse', 'browseItemSets', 'url', 'page'])) {
+                    $linkCopy = $link;
+                    if ('page' === $link['type']) {
+                        // Get the page ID from the site page map.
+                        $linkCopy['data']['id'] = $sitePageMap[$linkCopy['data']['id']];
+                    }
+                    if ($link['links']) {
+                        // Recursively follow sub-links.
+                        $linkCopy['links'] = $getLinks($link['links']);
+                    }
+                    $linksCopy[] = $linkCopy;
+                }
+            }
+            return $linksCopy;
+        };
+        if ($siteNavigation) {
+            $siteNavigationCopy = $getLinks($siteNavigation);
+            $dql = 'UPDATE Omeka\Entity\Site s SET s.navigation = :navigation WHERE s.id = :site_id';
+            $query = $this->entityManager->createQuery($dql);
+            $query->setParameters([
+                'navigation' => json_encode($siteNavigationCopy),
+                'site_id' => $siteCopy->id(),
+            ]);
+            $query->execute();
+        }
 
         // @todo: Copy site settings.
 
