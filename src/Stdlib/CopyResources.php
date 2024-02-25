@@ -1,24 +1,29 @@
 <?php
 namespace CopyResources\Stdlib;
 
+use Doctrine\ORM\EntityManager;
 use Omeka\Api\Representation;
+use Omeka\Api\Manager as ApiManager;
 use Laminas\ServiceManager\ServiceLocatorInterface;
 
 class CopyResources
 {
-    protected $services;
+    protected $entityManager;
 
     protected $api;
 
-    protected $em;
-
-    public function __construct(ServiceLocatorInterface $services)
+    public function __construct(EntityManager $entityManager, ApiManager $api)
     {
-        $this->services = $services;
-        $this->api = $this->services->get('Omeka\ApiManager');
-        $this->entityManager = $this->services->get('Omeka\EntityManager');
+        $this->entityManager = $entityManager;
+        $this->api = $api;
     }
 
+    /**
+     * Copy an item resource.
+     *
+     * @param Representation\ItemRepresentation $item The original item
+     * @return Representation\ItemRepresentation The item copy
+     */
     public function copyItem(Representation\ItemRepresentation $item)
     {
         $jsonLd = json_decode(json_encode($item), true);
@@ -29,6 +34,12 @@ class CopyResources
         return $itemCopy;
     }
 
+    /**
+     * Copy an item set resource.
+     *
+     * @param Representation\ItemSetRepresentation $itemSet The original item set
+     * @return Representation\ItemSetRepresentation The item set copy
+     */
     public function copyItemSet(Representation\ItemSetRepresentation $itemSet)
     {
         $jsonLd = json_decode(json_encode($itemSet), true);
@@ -37,6 +48,12 @@ class CopyResources
         return $itemSetCopy;
     }
 
+    /**
+     * Copy a site page resource.
+     *
+     * @param Representation\SitePageRepresentation $sitePage The original site page
+     * @return Representation\SitePageRepresentation The site page copy
+     */
     public function copySitePage(Representation\SitePageRepresentation $sitePage)
     {
         // The slug must be unique. Get the copy iteration.
@@ -54,6 +71,12 @@ class CopyResources
         return $sitePageCopy;
     }
 
+    /**
+     * Copy a site resource.
+     *
+     * @param Representation\SiteRepresentation $site The original site
+     * @return Representation\SiteRepresentation The site copy
+     */
     public function copySite(Representation\SiteRepresentation $site)
     {
         // The slug must be unique. Get the copy iteration.
@@ -88,7 +111,8 @@ class CopyResources
             $sitePageMap[$sitePage->id()] = $sitePageCopy->id();
         }
 
-        // Add homepage to the site.
+        // Add homepage to the site. Note that we must add the homepage after
+        // the page is created above.
         if ($siteHomepage) {
             $dql = 'UPDATE Omeka\Entity\Site s SET s.homepage = :page_id WHERE s.id = :site_id';
             $query = $this->entityManager->createQuery($dql);
@@ -99,7 +123,8 @@ class CopyResources
             $query->execute();
         }
 
-        // Add navigation to the site.
+        // Add navigation to the site. Note that we must add the navigation
+        // after the pages are created above.
 
         // Recursive function to prepare the navigation array.
         $getLinks = function($links) use ($sitePageMap, &$getLinks) {
@@ -133,9 +158,15 @@ class CopyResources
             $query->execute();
         }
 
-        // @todo: Copy site settings.
+        // Copy site settings.
+        $sql = sprintf('INSERT INTO site_setting (id, site_id, value)
+        SELECT id, %s, value FROM site_setting WHERE site_id = %s', $siteCopy->id(), $site->id());
+        $this->entityManager->getConnection()->executeUpdate($sql);
 
-        // @todo: Copy site-item links.
+        // Copy site-item links.
+        $sql = sprintf('INSERT INTO item_site (item_id, site_id)
+        SELECT item_id, %s FROM item_site WHERE site_id = %s', $siteCopy->id(), $site->id());
+        $this->entityManager->getConnection()->executeUpdate($sql);
 
         return $siteCopy;
     }
