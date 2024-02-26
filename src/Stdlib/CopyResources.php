@@ -8,6 +8,16 @@ use Laminas\ServiceManager\ServiceLocatorInterface;
 
 class CopyResources
 {
+    const CORE_BLOCK_LAYOUTS = [
+        'pageTitle', 'media', 'browsePreview', 'listOfSites',
+        'tableOfContents', 'lineBreak', 'itemWithMetadata', 'pageDateTime',
+        'blockGroup', 'asset', 'html', 'listOfPages', 'oembed',
+    ];
+
+    const CORE_NAVIGATION_LINK_TYPES = [
+        'browse', 'browseItemSets', 'url', 'page',
+    ];
+
     protected $entityManager;
 
     protected $api;
@@ -107,6 +117,14 @@ class CopyResources
         foreach ($sitePages as $sitePage) {
             $jsonLd = json_decode(json_encode($sitePage), true);
             $jsonLd['o:site']['o:id'] = $siteCopy->id();
+            // We must restrict blocks to the core block layouts because blocks
+            // introduced by modules could contain data that are valid only
+            // within the original site.
+            foreach ($jsonLd['o:block'] as $index => $block) {
+                if (!in_array($block['o:layout'], self::CORE_BLOCK_LAYOUTS)) {
+                    unset($jsonLd['o:block'][$index]);
+                }
+            }
             $sitePageCopy = $this->api->create('site_pages', $jsonLd)->getContent();
             $sitePageMap[$sitePage->id()] = $sitePageCopy->id();
         }
@@ -129,21 +147,22 @@ class CopyResources
         // Recursive function to prepare the navigation array.
         $getLinks = function($links) use ($sitePageMap, &$getLinks) {
             foreach ($links as $link) {
-                // We must restrict links to the native link types because links
-                // introduced by modules likely contain data that are valid only
+                // We must restrict links to the core link types because links
+                // introduced by modules could contain data that are valid only
                 // within the original site.
-                if (in_array($link['type'], ['browse', 'browseItemSets', 'url', 'page'])) {
-                    $linkCopy = $link;
-                    if ('page' === $link['type']) {
-                        // Get the page ID from the site page map.
-                        $linkCopy['data']['id'] = $sitePageMap[$linkCopy['data']['id']];
-                    }
-                    if ($link['links']) {
-                        // Recursively follow sub-links.
-                        $linkCopy['links'] = $getLinks($link['links']);
-                    }
-                    $linksCopy[] = $linkCopy;
+                if (!in_array($link['type'], self::CORE_NAVIGATION_LINK_TYPES)) {
+                    continue;
                 }
+                $linkCopy = $link;
+                if ('page' === $link['type']) {
+                    // Get the page ID from the site page map.
+                    $linkCopy['data']['id'] = $sitePageMap[$linkCopy['data']['id']];
+                }
+                if ($link['links']) {
+                    // Recursively follow sub-links.
+                    $linkCopy['links'] = $getLinks($link['links']);
+                }
+                $linksCopy[] = $linkCopy;
             }
             return $linksCopy;
         };
