@@ -8,16 +8,6 @@ use Laminas\ServiceManager\ServiceLocatorInterface;
 
 class CopyResources
 {
-    const CORE_BLOCK_LAYOUTS = [
-        'pageTitle', 'media', 'browsePreview', 'listOfSites',
-        'tableOfContents', 'lineBreak', 'itemWithMetadata', 'pageDateTime',
-        'blockGroup', 'asset', 'html', 'listOfPages', 'oembed',
-    ];
-
-    const CORE_NAVIGATION_LINK_TYPES = [
-        'browse', 'browseItemSets', 'url', 'page',
-    ];
-
     protected $entityManager;
 
     protected $api;
@@ -89,6 +79,21 @@ class CopyResources
      */
     public function copySite(Representation\SiteRepresentation $site)
     {
+        // Get service names from core config (not merged with modules config).
+        // We do this for two reasons: 1) We don't need to update a local copy
+        // of the block layouts and link types when they're updated in config;
+        // 2) Block layouts and link types added by modules are unstable outside
+        // the context of the original site.
+        $coreConfig = include sprintf('%s/application/config/module.config.php', OMEKA_PATH);
+        $coreBlockLayouts = array_merge(
+            array_keys($coreConfig['block_layouts']['invokables']),
+            array_keys($coreConfig['block_layouts']['factories'])
+        );
+        $coreNavLinkTypes = array_merge(
+            array_keys($coreConfig['navigation_links']['invokables']),
+            array_keys($coreConfig['navigation_links']['factories'])
+        );
+
         // The slug must be unique. Get the copy iteration.
         $i = 0;
         do {
@@ -121,7 +126,7 @@ class CopyResources
             // introduced by modules could contain data that are valid only
             // within the original site.
             foreach ($jsonLd['o:block'] as $index => $block) {
-                if (!in_array($block['o:layout'], self::CORE_BLOCK_LAYOUTS)) {
+                if (!in_array($block['o:layout'], $coreBlockLayouts)) {
                     unset($jsonLd['o:block'][$index]);
                 }
             }
@@ -145,12 +150,12 @@ class CopyResources
         // after the pages are created above.
 
         // Recursive function to prepare the navigation array.
-        $getLinks = function($links) use ($sitePageMap, &$getLinks) {
+        $getLinks = function($links) use (&$getLinks, $coreNavLinkTypes, $sitePageMap) {
             foreach ($links as $link) {
                 // We must restrict links to the core link types because links
                 // introduced by modules could contain data that are valid only
                 // within the original site.
-                if (!in_array($link['type'], self::CORE_NAVIGATION_LINK_TYPES)) {
+                if (!in_array($link['type'], $coreNavLinkTypes)) {
                     continue;
                 }
                 $linkCopy = $link;
