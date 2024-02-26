@@ -82,8 +82,8 @@ class CopyResources
         // Get service names from core config (not merged with modules config).
         // We do this for two reasons: 1) We don't need to update a local copy
         // of the block layouts and link types when they're updated in config;
-        // 2) Block layouts and link types added by modules are unstable outside
-        // the context of the original site.
+        // 2) Block layouts and link types added by modules are likely invalid
+        // outside the context of the original site.
         $coreConfig = include sprintf('%s/application/config/module.config.php', OMEKA_PATH);
         $coreBlockLayouts = array_merge(
             array_keys($coreConfig['block_layouts']['invokables']),
@@ -122,12 +122,15 @@ class CopyResources
         foreach ($sitePages as $sitePage) {
             $jsonLd = json_decode(json_encode($sitePage), true);
             $jsonLd['o:site']['o:id'] = $siteCopy->id();
-            // We must restrict blocks to the core block layouts because blocks
-            // introduced by modules could contain data that are valid only
-            // within the original site.
+            // We must convert block layouts introduced by modules to stubs
+            // because they likely contain data that are valid only within the
+            // context of the original site. We use stubs instead of removing
+            // the blocks becuase removing them may adversely affect the flow of
+            // the copied page.
             foreach ($jsonLd['o:block'] as $index => $block) {
-                if (!in_array($block['o:layout'], $coreBlockLayouts)) {
-                    unset($jsonLd['o:block'][$index]);
+                $blockLayout = $block['o:layout'];
+                if (!in_array($blockLayout, $coreBlockLayouts)) {
+                    $jsonLd['o:block'][$index]['o:layout'] = sprintf('%s_copy', $blockLayout);
                 }
             }
             $sitePageCopy = $this->api->create('site_pages', $jsonLd)->getContent();
@@ -152,13 +155,15 @@ class CopyResources
         // Recursive function to prepare the navigation array.
         $getLinks = function($links) use (&$getLinks, $coreNavLinkTypes, $sitePageMap) {
             foreach ($links as $link) {
-                // We must restrict links to the core link types because links
-                // introduced by modules could contain data that are valid only
-                // within the original site.
-                if (!in_array($link['type'], $coreNavLinkTypes)) {
-                    continue;
-                }
                 $linkCopy = $link;
+                // We must convert links introduced by modules to stubs because
+                // they likely contain data that are valid only within the
+                // context of the original site. We use stubs instead of removing
+                // the links becuase removing them may adversely affect the flow
+                // of the copied navigation.
+                if (!in_array($link['type'], $coreNavLinkTypes)) {
+                    $linkCopy['type'] = sprintf('%s_copy', $link['type']);
+                }
                 if ('page' === $link['type']) {
                     // Get the page ID from the site page map.
                     $linkCopy['data']['id'] = $sitePageMap[$linkCopy['data']['id']];
