@@ -8,14 +8,17 @@ use Laminas\ServiceManager\ServiceLocatorInterface;
 
 class CopyResources
 {
-    protected $entityManager;
-
     protected $api;
 
-    public function __construct(EntityManager $entityManager, ApiManager $api)
+    protected $entityManager;
+
+    protected $connection;
+
+    public function __construct(ApiManager $api, EntityManager $entityManager)
     {
-        $this->entityManager = $entityManager;
         $this->api = $api;
+        $this->entityManager = $entityManager;
+        $this->connection = $entityManager->getConnection();
     }
 
     /**
@@ -80,10 +83,10 @@ class CopyResources
     public function copySite(Representation\SiteRepresentation $site)
     {
         // Get service names from core config (not merged with modules config).
-        // We do this for two reasons: 1) We don't need to update a local copy
-        // of the block layouts and link types when they're updated in config;
-        // 2) Block layouts and link types added by modules are likely invalid
-        // outside the context of the original site.
+        // We do this for two reasons: 1) Because we don't need to update a
+        // local copy of the block layouts and link types when they're updated
+        // in config; and 2) Because block layouts and link types added by
+        // modules are likely invalid outside the context of the original site.
         $coreConfig = include sprintf('%s/application/config/module.config.php', OMEKA_PATH);
         $coreBlockLayouts = array_merge(
             array_keys($coreConfig['block_layouts']['invokables']),
@@ -140,13 +143,11 @@ class CopyResources
         // Add homepage to the site. Note that we must add the homepage after
         // the page is created above.
         if ($siteHomepage) {
-            $dql = 'UPDATE Omeka\Entity\Site s SET s.homepage = :page_id WHERE s.id = :site_id';
-            $query = $this->entityManager->createQuery($dql);
-            $query->setParameters([
-                'page_id' => $sitePageMap[$siteHomepage['o:id']],
-                'site_id' => $siteCopy->id(),
-            ]);
-            $query->execute();
+            $sql = 'UPDATE site SET homepage_id = :homepage_id WHERE id = :site_copy_id';
+            $stmt = $this->connection->prepare($sql);
+            $stmt->bindValue('homepage_id', $sitePageMap[$siteHomepage['o:id']]);
+            $stmt->bindValue('site_copy_id', $siteCopy->id());
+            $stmt->executeStatement();
         }
 
         // Add navigation to the site. Note that we must add the navigation
@@ -178,24 +179,28 @@ class CopyResources
         };
         if ($siteNavigation) {
             $siteNavigationCopy = $getLinks($siteNavigation);
-            $dql = 'UPDATE Omeka\Entity\Site s SET s.navigation = :navigation WHERE s.id = :site_id';
-            $query = $this->entityManager->createQuery($dql);
-            $query->setParameters([
-                'navigation' => json_encode($siteNavigationCopy),
-                'site_id' => $siteCopy->id(),
-            ]);
-            $query->execute();
+            $sql = 'UPDATE site SET navigation = :navigation WHERE id = :site_copy_id';
+            $stmt = $this->connection->prepare($sql);
+            $stmt->bindValue('navigation', json_encode($siteNavigationCopy));
+            $stmt->bindValue('site_copy_id', $siteCopy->id());
+            $stmt->executeStatement();
         }
 
         // Copy site settings.
-        $sql = sprintf('INSERT INTO site_setting (id, site_id, value)
-        SELECT id, %s, value FROM site_setting WHERE site_id = %s', $siteCopy->id(), $site->id());
-        $this->entityManager->getConnection()->executeUpdate($sql);
+        $sql = 'INSERT INTO site_setting (id, site_id, value)
+        SELECT id, :site_copy_id, value FROM site_setting WHERE site_id = :site_id';
+        $stmt = $this->connection->prepare($sql);
+        $stmt->bindValue('site_copy_id', $siteCopy->id());
+        $stmt->bindValue('site_id', $site->id());
+        $stmt->executeStatement();
 
         // Copy site-item links.
-        $sql = sprintf('INSERT INTO item_site (item_id, site_id)
-        SELECT item_id, %s FROM item_site WHERE site_id = %s', $siteCopy->id(), $site->id());
-        $this->entityManager->getConnection()->executeUpdate($sql);
+        $sql = 'INSERT INTO item_site (item_id, site_id)
+        SELECT item_id, :site_copy_id FROM item_site WHERE site_id = :site_id';
+        $stmt = $this->connection->prepare($sql);
+        $stmt->bindValue('site_copy_id', $siteCopy->id());
+        $stmt->bindValue('site_id', $site->id());
+        $stmt->executeStatement();
 
         return $siteCopy;
     }
