@@ -53,6 +53,15 @@ class CopyResources
         $jsonLd = json_decode(json_encode($itemSet), true);
         unset($jsonLd['o:owner']);
         $itemSetCopy = $this->api->create('item_sets', $jsonLd)->getContent();
+
+        // Copy item/item-set links.
+        $sql = 'INSERT INTO item_item_set (item_id, item_set_id)
+            SELECT item_id, :item_set_copy_id FROM item_item_set WHERE item_set_id = :item_set_id';
+        $stmt = $this->connection->prepare($sql);
+        $stmt->bindValue('item_set_copy_id', $itemSetCopy->id());
+        $stmt->bindValue('item_set_id', $itemSet->id());
+        $stmt->executeStatement();
+
         return $itemSetCopy;
     }
 
@@ -194,15 +203,15 @@ class CopyResources
 
         // Copy site settings.
         $sql = 'INSERT INTO site_setting (id, site_id, value)
-        SELECT id, :site_copy_id, value FROM site_setting WHERE site_id = :site_id';
+            SELECT id, :site_copy_id, value FROM site_setting WHERE site_id = :site_id';
         $stmt = $this->connection->prepare($sql);
         $stmt->bindValue('site_copy_id', $siteCopy->id());
         $stmt->bindValue('site_id', $site->id());
         $stmt->executeStatement();
 
-        // Copy site-item links.
+        // Copy site/item links.
         $sql = 'INSERT INTO item_site (item_id, site_id)
-        SELECT item_id, :site_copy_id FROM item_site WHERE site_id = :site_id';
+            SELECT item_id, :site_copy_id FROM item_site WHERE site_id = :site_id';
         $stmt = $this->connection->prepare($sql);
         $stmt->bindValue('site_copy_id', $siteCopy->id());
         $stmt->bindValue('site_id', $site->id());
