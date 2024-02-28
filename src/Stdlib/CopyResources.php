@@ -147,7 +147,7 @@ class CopyResources
             foreach ($jsonLd['o:block'] as $index => $block) {
                 $blockLayout = $block['o:layout'];
                 if (!in_array($blockLayout, $coreBlockLayouts)) {
-                    $jsonLd['o:block'][$index]['o:layout'] = sprintf('%s_copy', $blockLayout);
+                    $jsonLd['o:block'][$index]['o:layout'] = sprintf('%s__copy', $blockLayout);
                 }
             }
             $sitePageCopy = $this->api->create('site_pages', $jsonLd)->getContent();
@@ -178,7 +178,7 @@ class CopyResources
                 // the links becuase removing them may adversely affect the flow
                 // of the copied navigation.
                 if (!in_array($link['type'], $coreNavLinkTypes)) {
-                    $linkCopy['type'] = sprintf('%s_copy', $link['type']);
+                    $linkCopy['type'] = sprintf('%s__copy', $link['type']);
                 }
                 if ('page' === $link['type']) {
                     // Get the page ID from the site page map.
@@ -252,7 +252,7 @@ class CopyResources
             AND s.id = :site_copy_id';
         $stmt = $this->connection->prepare($sql);
         $stmt->bindValue('layout', $originalLayoutName);
-        $stmt->bindValue('layout_copy', sprintf('%s_copy', $originalLayoutName));
+        $stmt->bindValue('layout_copy', sprintf('%s__copy', $originalLayoutName));
         $stmt->bindValue('site_copy_id', $siteCopy->id());
         $stmt->executeStatement();
     }
@@ -271,7 +271,7 @@ class CopyResources
             $linksCopy = [];
             foreach ($links as $link) {
                 $linkCopy = $link;
-                if (sprintf('%s_copy', $originalLinkType) === $link['type']) {
+                if (sprintf('%s__copy', $originalLinkType) === $link['type']) {
                     // Revert to the original name.
                     $linkCopy['type'] = $originalLinkType;
                 }
