@@ -11,7 +11,8 @@ class CopyResourcesFactory implements FactoryInterface
     {
         return new CopyResources(
             $services->get('Omeka\ApiManager'),
-            $services->get('Omeka\EntityManager')
+            $services->get('Omeka\EntityManager'),
+            $services->get('EventManager')
         );
     }
 }

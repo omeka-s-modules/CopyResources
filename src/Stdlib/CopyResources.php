@@ -4,6 +4,8 @@ namespace CopyResources\Stdlib;
 use Doctrine\ORM\EntityManager;
 use Omeka\Api\Representation;
 use Omeka\Api\Manager as ApiManager;
+use Laminas\EventManager\Event;
+use Laminas\EventManager\EventManager;
 use Laminas\ServiceManager\ServiceLocatorInterface;
 
 class CopyResources
@@ -12,12 +14,15 @@ class CopyResources
 
     protected $entityManager;
 
+    protected $eventManager;
+
     protected $connection;
 
-    public function __construct(ApiManager $api, EntityManager $entityManager)
+    public function __construct(ApiManager $api, EntityManager $entityManager, EventManager $eventManager)
     {
         $this->api = $api;
         $this->entityManager = $entityManager;
+        $this->eventManager = $eventManager;
         $this->connection = $entityManager->getConnection();
     }
 
@@ -113,7 +118,7 @@ class CopyResources
         unset($jsonLd['o:owner']);
         unset($jsonLd['o:page']);
         unset($jsonLd['o:homepage']);
-        unset($jsonLd['o:navigation']);
+        $jsonLd['o:navigation'] = []; // Set to an empty array to avoid the auto-generated "Browse" link.
         $siteCopy = $this->api->create('sites', $jsonLd)->getContent();
 
         // Delete the auto-generated "Welcome" page.
@@ -155,6 +160,7 @@ class CopyResources
 
         // Recursive function to prepare the navigation array.
         $getLinks = function($links) use (&$getLinks, $coreNavLinkTypes, $sitePageMap) {
+            $linksCopy = [];
             foreach ($links as $link) {
                 $linkCopy = $link;
                 // We must convert links introduced by modules to stubs because
@@ -202,6 +208,80 @@ class CopyResources
         $stmt->bindValue('site_id', $site->id());
         $stmt->executeStatement();
 
+        // Refresh the site copy to update homepage, navigation, etc.
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+        $siteCopy = $this->api->read('sites', $siteCopy->id())->getContent();
+
+        // Allow modules to copy their data.
+        $eventArgs = [
+            'copy_resources' => $this,
+            'site' => $site,
+            'site_copy' => $siteCopy,
+            'site_page_map' => $sitePageMap,
+        ];
+        $event = new Event('copy_resources.copy_site', null, $eventArgs);
+        $this->eventManager->triggerEvent($event);
+
         return $siteCopy;
+    }
+
+    /**
+     * Convenience function used by modules to revert copied site block layout
+     * names to their original name.
+     *
+     * @param Representation\SiteRepresentation $siteCopy
+     * @param string $originalLayoutName
+     */
+    public function revertSiteBlockLayouts(Representation\SiteRepresentation $siteCopy, string $originalLayoutName)
+    {
+        $sql = 'UPDATE site_page_block b
+            INNER JOIN site_page p ON p.id = b.page_id
+            INNER JOIN site s ON s.id = p.site_id
+            SET b.layout = :layout
+            WHERE b.layout = :layout_copy
+            AND s.id = :site_copy_id';
+        $stmt = $this->connection->prepare($sql);
+        $stmt->bindValue('layout', $originalLayoutName);
+        $stmt->bindValue('layout_copy', sprintf('%s_copy', $originalLayoutName));
+        $stmt->bindValue('site_copy_id', $siteCopy->id());
+        $stmt->executeStatement();
+    }
+
+    /**
+     * Convenience function used by modules to revert copied site navigation
+     * link types to their original name.
+     *
+     * @param Representation\SiteRepresentation $siteCopy
+     * @param string $originalLinkType
+     */
+    public function revertSiteNavigationLinkTypes(Representation\SiteRepresentation $siteCopy, string $originalLinkType)
+    {
+        // Recursive function to prepare the navigation array.
+        $getLinks = function($links) use (&$getLinks, $originalLinkType) {
+            $linksCopy = [];
+            foreach ($links as $link) {
+                $linkCopy = $link;
+                if (sprintf('%s_copy', $originalLinkType) === $link['type']) {
+                    // Revert to the original name.
+                    $linkCopy['type'] = $originalLinkType;
+                }
+                if ($link['links']) {
+                    // Recursively follow sub-links.
+                    $linkCopy['links'] = $getLinks($link['links']);
+                }
+                $linksCopy[] = $linkCopy;
+            }
+            return $linksCopy;
+        };
+        $siteNavigation = $siteCopy->navigation();
+        if ($siteNavigation) {
+            $siteNavigationCopy = $getLinks($siteNavigation);
+            $sql = 'UPDATE site SET navigation = :navigation WHERE id = :site_copy_id';
+            $stmt = $this->connection->prepare($sql);
+            $stmt->bindValue('navigation', json_encode($siteNavigationCopy));
+            $stmt->bindValue('site_copy_id', $siteCopy->id());
+            $stmt->executeStatement();
+        }
     }
 }
