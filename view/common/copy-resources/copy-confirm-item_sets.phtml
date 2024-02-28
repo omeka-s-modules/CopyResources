@@ -6,4 +6,26 @@
 <div class="resource-details">
     <h3><?php echo $resource->link($resource->displayTitle(), null, ['target' => '_blank']); ?></h3>
     <div><?php echo $this->escapeHtml($resource->displayDescription()); ?></div>
+    <div class="meta-group">
+        <h4><?php echo $this->translate('ID'); ?></h4>
+        <div class="value"><?php echo $this->escapeHtml($resource->id()); ?></div>
+    </div>
+    <div class="meta-group">
+        <h4><?php echo $this->translate('Owner'); ?></h4>
+        <div class="value">
+        <?php
+        $owner = $resource->owner();
+        echo $owner
+            ? $this->hyperlink($owner->name(), $this->url('admin/id', [
+                'controller' => 'user',
+                'action' => 'show',
+                'id' => $owner->id(), ]
+            )) : null;
+            ?>
+        </div>
+    </div>
+    <div class="meta-group">
+        <h4><?php echo $this->translate('Created'); ?></h4>
+        <div class="value"><?php echo $this->escapeHtml($this->i18n()->dateFormat($resource->created(), 'long')); ?></div>
+    </div>
 </div>

@@ -9,4 +9,8 @@
         <h4><?php echo $this->translate('Slug'); ?></h4>
         <div class="value"><?php echo $this->escapeHtml($resource->slug()); ?></div>
     </div>
+    <div class="meta-group">
+        <h4><?php echo $this->translate('Modified'); ?></h4>
+        <div class="value"><?php echo $this->escapeHtml($this->i18n()->dateFormat($resource->modified(), 'long')); ?></div>
+    </div>
 </div>

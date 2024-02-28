@@ -1,5 +1,6 @@
 <div id="sidebar-confirm">
     <h3><?php echo $this->translate('Copy site'); ?></h3>
+    <p><?php echo $this->translate('Page blocks and navigation links added by modules may carry over as invalid placeholders. You will have to replace them or reorganize your pages and navigation. Other data added by modules may not carry over at all.'); ?></p>
     <p><?php echo $this->translate('Are you sure you would like to copy this site?'); ?></p>
     <?php echo $this->form($form); ?>
 </div>
@@ -8,5 +9,23 @@
     <div class="meta-group">
         <h4><?php echo $this->translate('Slug'); ?></h4>
         <div class="value"><?php echo $this->escapeHtml($resource->slug()); ?></div>
+    </div>
+    <div class="meta-group">
+        <h4><?php echo $this->translate('Owner'); ?></h4>
+        <div class="value">
+        <?php
+        $owner = $resource->owner();
+        echo $owner
+            ? $this->hyperlink($owner->name(), $this->url('admin/id', [
+                'controller' => 'user',
+                'action' => 'show',
+                'id' => $owner->id(), ]
+            )) : null;
+            ?>
+        </div>
+    </div>
+    <div class="meta-group">
+        <h4><?php echo $this->translate('Created'); ?></h4>
+        <div class="value"><?php echo $this->escapeHtml($this->i18n()->dateFormat($resource->created(), 'long')); ?></div>
     </div>
 </div>
