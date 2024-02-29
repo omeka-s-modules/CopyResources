@@ -6,7 +6,6 @@ use Omeka\Api\Representation;
 use Omeka\Api\Manager as ApiManager;
 use Laminas\EventManager\Event;
 use Laminas\EventManager\EventManager;
-use Laminas\ServiceManager\ServiceLocatorInterface;
 
 class CopyResources
 {
@@ -168,7 +167,7 @@ class CopyResources
         // after the pages are created above.
 
         // Recursive function to prepare the navigation array.
-        $getLinks = function($links) use (&$getLinks, $coreNavLinkTypes, $sitePageMap) {
+        $getLinks = function ($links) use (&$getLinks, $coreNavLinkTypes, $sitePageMap) {
             $linksCopy = [];
             foreach ($links as $link) {
                 $linkCopy = $link;
@@ -267,7 +266,7 @@ class CopyResources
     public function revertSiteNavigationLinkTypes(Representation\SiteRepresentation $siteCopy, string $originalLinkType)
     {
         // Recursive function to prepare the navigation array.
-        $getLinks = function($links) use (&$getLinks, $originalLinkType) {
+        $getLinks = function ($links) use (&$getLinks, $originalLinkType) {
             $linksCopy = [];
             foreach ($links as $link) {
                 $linkCopy = $link;

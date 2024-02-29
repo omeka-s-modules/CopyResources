@@ -2,7 +2,6 @@
 namespace CopyResources\Form;
 
 use Laminas\Form\Form;
-use Omeka\Mvc\Exception\RuntimeException;
 
 class CopyConfirmForm extends Form
 {
