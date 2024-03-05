@@ -167,35 +167,33 @@ class CopyResources
         // after the pages are created above.
 
         // Recursive function to prepare the navigation array.
-        $getLinks = function ($links) use (&$getLinks, $coreNavLinkTypes, $sitePageMap) {
+        $getLinks = function (&$links) use (&$getLinks, $coreNavLinkTypes, $sitePageMap) {
             $linksCopy = [];
-            foreach ($links as $link) {
-                $linkCopy = $link;
+            foreach ($links as &$link) {
                 // We must convert links introduced by modules to stubs because
                 // they likely contain data that are valid only within the
                 // context of the original site. We use stubs instead of removing
                 // the links becuase removing them may adversely affect the flow
                 // of the copied navigation.
                 if (!in_array($link['type'], $coreNavLinkTypes)) {
-                    $linkCopy['type'] = sprintf('%s__copy', $link['type']);
+                    $link['type'] = sprintf('%s__copy', $link['type']);
                 }
                 if ('page' === $link['type']) {
                     // Get the page ID from the site page map.
-                    $linkCopy['data']['id'] = $sitePageMap[$linkCopy['data']['id']];
+                    $link['data']['id'] = $sitePageMap[$link['data']['id']];
                 }
                 if ($link['links']) {
                     // Recursively follow sub-links.
-                    $linkCopy['links'] = $getLinks($link['links']);
+                    $link['links'] = $getLinks($link['links']);
                 }
-                $linksCopy[] = $linkCopy;
             }
-            return $linksCopy;
+            return $links;
         };
         if ($siteNavigation) {
-            $siteNavigationCopy = $getLinks($siteNavigation);
+            $getLinks($siteNavigation);
             $sql = 'UPDATE site SET navigation = :navigation WHERE id = :site_copy_id';
             $stmt = $this->connection->prepare($sql);
-            $stmt->bindValue('navigation', json_encode($siteNavigationCopy));
+            $stmt->bindValue('navigation', json_encode($siteNavigation));
             $stmt->bindValue('site_copy_id', $siteCopy->id());
             $stmt->executeStatement();
         }
@@ -266,28 +264,25 @@ class CopyResources
     public function revertSiteNavigationLinkTypes(Representation\SiteRepresentation $siteCopy, string $originalLinkType)
     {
         // Recursive function to prepare the navigation array.
-        $getLinks = function ($links) use (&$getLinks, $originalLinkType) {
-            $linksCopy = [];
-            foreach ($links as $link) {
-                $linkCopy = $link;
+        $getLinks = function (&$links) use (&$getLinks, $originalLinkType) {
+            foreach ($links as &$link) {
                 if (sprintf('%s__copy', $originalLinkType) === $link['type']) {
                     // Revert to the original name.
-                    $linkCopy['type'] = $originalLinkType;
+                    $link['type'] = $originalLinkType;
                 }
                 if ($link['links']) {
                     // Recursively follow sub-links.
-                    $linkCopy['links'] = $getLinks($link['links']);
+                    $link['links'] = $getLinks($link['links']);
                 }
-                $linksCopy[] = $linkCopy;
             }
-            return $linksCopy;
+            return $links;
         };
         $siteNavigation = $siteCopy->navigation();
         if ($siteNavigation) {
-            $siteNavigationCopy = $getLinks($siteNavigation);
+            $getLinks($siteNavigation);
             $sql = 'UPDATE site SET navigation = :navigation WHERE id = :site_copy_id';
             $stmt = $this->connection->prepare($sql);
-            $stmt->bindValue('navigation', json_encode($siteNavigationCopy));
+            $stmt->bindValue('navigation', json_encode($siteNavigation));
             $stmt->bindValue('site_copy_id', $siteCopy->id());
             $stmt->executeStatement();
         }
