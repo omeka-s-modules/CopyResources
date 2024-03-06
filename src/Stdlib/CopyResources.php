@@ -17,12 +17,18 @@ class CopyResources
 
     protected $connection;
 
+    protected $originalIdentityMap;
+
     public function __construct(ApiManager $api, EntityManager $entityManager, EventManager $eventManager)
     {
         $this->api = $api;
         $this->entityManager = $entityManager;
         $this->eventManager = $eventManager;
         $this->connection = $entityManager->getConnection();
+
+        // Set the original identity map so we have a snapshot of the original
+        // state of the entity manager.
+        $this->originalIdentityMap = $entityManager->getUnitOfWork()->getIdentityMap();
     }
 
     /**
@@ -214,9 +220,19 @@ class CopyResources
         $stmt->bindValue('site_id', $site->id());
         $stmt->executeStatement();
 
-        // Refresh the site copy to update homepage, navigation, etc.
+        // Refresh the site copy to update homepage, navigation, etc. Instead of
+        // clearing the entity manager to force a refresh, detach entities that
+        // were not part of the original state of the entity manager to avoid
+        // "A new entity was found" Doctrine errors.
         $this->entityManager->flush();
-        $this->entityManager->clear();
+        $identityMap = $this->entityManager->getUnitOfWork()->getIdentityMap();
+        foreach ($identityMap as $entityClass => $entities) {
+            foreach ($entities as $idHash => $entity) {
+                if (!isset($this->originalIdentityMap[$entityClass][$idHash])) {
+                    $this->entityManager->detach($entity);
+                }
+            }
+        }
         $siteCopy = $this->api->read('sites', $siteCopy->id())->getContent();
 
         // Allow modules to copy their data.
