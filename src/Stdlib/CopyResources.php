@@ -121,8 +121,7 @@ class CopyResources
                 ->findOneBy(['slug' => sprintf('%s-%s', $site->slug(), ++$i)]);
         } while ($hasSite);
 
-        $siteHomepage = $site->homepage();
-        $siteNavigation = $site->navigation();
+        // Copy the site.
         $callback = function (&$jsonLd) use ($site, $i) {
             // Append the copy iteration to the slug.
             $jsonLd['o:slug'] = sprintf('%s-%s', $site->slug(), $i);
@@ -141,25 +140,27 @@ class CopyResources
         $sitePages = $this->api->search('site_pages', ['site_id' => $site->id(), 'per_page' => 1000])->getContent();
         $sitePageMap = [];
         foreach ($sitePages as $sitePage) {
-            $jsonLd = json_decode(json_encode($sitePage), true);
-            $jsonLd['o:site']['o:id'] = $siteCopy->id();
-            // We must convert block layouts introduced by modules to stubs
-            // because they likely contain data that are valid only within the
-            // context of the original site. We use stubs instead of removing
-            // the blocks becuase removing them may adversely affect the flow of
-            // the copied page.
-            foreach ($jsonLd['o:block'] as $index => $block) {
-                $blockLayout = $block['o:layout'];
-                if (!in_array($blockLayout, $coreBlockLayouts)) {
-                    $jsonLd['o:block'][$index]['o:layout'] = sprintf('%s__copy', $blockLayout);
+            $callback = function (&$jsonLd) use ($siteCopy, $coreBlockLayouts) {
+                $jsonLd['o:site']['o:id'] = $siteCopy->id();
+                // We must convert block layouts introduced by modules to stubs
+                // because they likely contain data that are valid only within the
+                // context of the original site. We use stubs instead of removing
+                // the blocks becuase removing them may adversely affect the flow of
+                // the copied page.
+                foreach ($jsonLd['o:block'] as $index => $block) {
+                    $blockLayout = $block['o:layout'];
+                    if (!in_array($blockLayout, $coreBlockLayouts)) {
+                        $jsonLd['o:block'][$index]['o:layout'] = sprintf('%s__copy', $blockLayout);
+                    }
                 }
-            }
-            $sitePageCopy = $this->api->create('site_pages', $jsonLd)->getContent();
+            };
+            $sitePageCopy = $this->createResourceCopy('site_pages', $sitePage, $callback);
             $sitePageMap[$sitePage->id()] = $sitePageCopy->id();
         }
 
         // Add homepage to the site. Note that we must add the homepage after
         // the page is created above.
+        $siteHomepage = $site->homepage();
         if ($siteHomepage) {
             $sql = 'UPDATE site SET homepage_id = :homepage_id WHERE id = :site_copy_id';
             $stmt = $this->connection->prepare($sql);
@@ -170,6 +171,7 @@ class CopyResources
 
         // Add navigation to the site. Note that we must add the navigation
         // after the pages are created above.
+        $siteNavigation = $site->navigation();
         if ($siteNavigation) {
             $callback = function (&$link) use ($coreNavLinkTypes, $sitePageMap) {
                 // We must convert links introduced by modules to stubs because
