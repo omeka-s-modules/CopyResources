@@ -39,6 +39,14 @@ class CopyResources
             unset($jsonLd['o:media']);
         };
         $itemCopy = $this->createResourceCopy('items', $item, $callback);
+
+        // Allow modules to copy their data.
+        $eventArgs = [
+            'resource' => $item,
+            'resource_copy' => $itemCopy,
+        ];
+        $this->triggerEvent('copy_resources.copy_item', $eventArgs);
+
         return $itemCopy;
     }
 
@@ -62,6 +70,13 @@ class CopyResources
         $stmt->bindValue('item_set_copy_id', $itemSetCopy->id());
         $stmt->bindValue('item_set_id', $itemSet->id());
         $stmt->executeStatement();
+
+        // Allow modules to copy their data.
+        $eventArgs = [
+            'resource' => $itemSet,
+            'resource_copy' => $itemSetCopy,
+        ];
+        $this->triggerEvent('copy_resources.copy_item_set', $eventArgs);
 
         return $itemSetCopy;
     }
@@ -87,6 +102,14 @@ class CopyResources
             $jsonLd['o:slug'] = sprintf('%s-%s', $sitePage->slug(), $i);
         };
         $sitePageCopy = $this->createResourceCopy('site_pages', $sitePage, $callback);
+
+        // Allow modules to copy their data.
+        $eventArgs = [
+            'resource' => $sitePage,
+            'resource_copy' => $sitePageCopy,
+        ];
+        $this->triggerEvent('copy_resources.copy_site_page', $eventArgs);
+
         return $sitePageCopy;
     }
 
@@ -209,15 +232,26 @@ class CopyResources
 
         // Allow modules to copy their data.
         $eventArgs = [
-            'copy_resources' => $this,
-            'site_id' => $site->id(),
-            'site_copy_id' => $siteCopy->id(),
+            'resource' => $site,
+            'resource_copy' => $siteCopy,
             'site_page_map' => $sitePageMap,
         ];
-        $event = new Event('copy_resources.copy_site', null, $eventArgs);
-        $this->eventManager->triggerEvent($event);
+        $this->triggerEvent('copy_resources.copy_site', $eventArgs);
 
         return $siteCopy;
+    }
+
+    /**
+     * Trigger an event.
+     *
+     * @param string $eventName
+     * @param array $eventArgs
+     */
+    public function triggerEvent(string $eventName, array $eventArgs)
+    {
+        $eventArgs['copy_resources'] = $this; // Always pass $this
+        $event = new Event($eventName, null, $eventArgs);
+        $this->eventManager->triggerEvent($event);
     }
 
     /**
