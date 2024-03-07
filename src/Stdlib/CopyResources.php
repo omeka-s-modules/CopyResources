@@ -33,11 +33,12 @@ class CopyResources
      */
     public function copyItem(Representation\ItemRepresentation $item)
     {
-        $jsonLd = json_decode(json_encode($item), true);
-        unset($jsonLd['o:owner']);
-        unset($jsonLd['o:primary_media']);
-        unset($jsonLd['o:media']);
-        $itemCopy = $this->api->create('items', $jsonLd)->getContent();
+        $callback = function (&$jsonLd) {
+            unset($jsonLd['o:owner']);
+            unset($jsonLd['o:primary_media']);
+            unset($jsonLd['o:media']);
+        };
+        $itemCopy = $this->createResourceCopy('items', $item, $callback);
         return $itemCopy;
     }
 
@@ -49,9 +50,10 @@ class CopyResources
      */
     public function copyItemSet(Representation\ItemSetRepresentation $itemSet)
     {
-        $jsonLd = json_decode(json_encode($itemSet), true);
-        unset($jsonLd['o:owner']);
-        $itemSetCopy = $this->api->create('item_sets', $jsonLd)->getContent();
+        $callback = function (&$jsonLd) {
+            unset($jsonLd['o:owner']);
+        };
+        $itemSetCopy = $this->createResourceCopy('item_sets', $itemSet, $callback);
 
         // Copy item/item-set links.
         $sql = 'INSERT INTO item_item_set (item_id, item_set_id)
@@ -80,10 +82,11 @@ class CopyResources
                 ->findOneBy(['slug' => sprintf('%s-%s', $sitePage->slug(), ++$i)]);
         } while ($hasSitePage);
 
-        $jsonLd = json_decode(json_encode($sitePage), true);
-        // Append the copy iteration to the slug.
-        $jsonLd['o:slug'] = sprintf('%s-%s', $sitePage->slug(), $i);
-        $sitePageCopy = $this->api->create('site_pages', $jsonLd)->getContent();
+        $callback = function (&$jsonLd) use ($sitePage, $i) {
+            // Append the copy iteration to the slug.
+            $jsonLd['o:slug'] = sprintf('%s-%s', $sitePage->slug(), $i);
+        };
+        $sitePageCopy = $this->createResourceCopy('site_pages', $sitePage, $callback);
         return $sitePageCopy;
     }
 
@@ -118,16 +121,18 @@ class CopyResources
                 ->findOneBy(['slug' => sprintf('%s-%s', $site->slug(), ++$i)]);
         } while ($hasSite);
 
-        $jsonLd = json_decode(json_encode($site), true);
-        // Append the copy iteration to the slug.
-        $jsonLd['o:slug'] = sprintf('%s-%s', $site->slug(), $i);
-        $siteHomepage = $jsonLd['o:homepage'];
-        $siteNavigation = $jsonLd['o:navigation'];
-        unset($jsonLd['o:owner']);
-        unset($jsonLd['o:page']);
-        unset($jsonLd['o:homepage']);
-        $jsonLd['o:navigation'] = []; // Set to an empty array to avoid the auto-generated "Browse" link.
-        $siteCopy = $this->api->create('sites', $jsonLd)->getContent();
+        $siteHomepage = $site->homepage();
+        $siteNavigation = $site->navigation();
+        $callback = function (&$jsonLd) use ($site, $i) {
+            // Append the copy iteration to the slug.
+            $jsonLd['o:slug'] = sprintf('%s-%s', $site->slug(), $i);
+            // Set to an empty array to avoid the auto-generated "Browse" link.
+            $jsonLd['o:navigation'] = [];
+            unset($jsonLd['o:owner']);
+            unset($jsonLd['o:page']);
+            unset($jsonLd['o:homepage']);
+        };
+        $siteCopy = $this->createResourceCopy('sites', $site, $callback);
 
         // Delete the auto-generated "Welcome" page.
         $this->api->delete('site_pages', array_key_first($siteCopy->pages()));
@@ -158,7 +163,7 @@ class CopyResources
         if ($siteHomepage) {
             $sql = 'UPDATE site SET homepage_id = :homepage_id WHERE id = :site_copy_id';
             $stmt = $this->connection->prepare($sql);
-            $stmt->bindValue('homepage_id', $sitePageMap[$siteHomepage['o:id']]);
+            $stmt->bindValue('homepage_id', $sitePageMap[$siteHomepage->id()]);
             $stmt->bindValue('site_copy_id', $siteCopy->id());
             $stmt->executeStatement();
         }
@@ -211,6 +216,25 @@ class CopyResources
         $this->eventManager->triggerEvent($event);
 
         return $siteCopy;
+    }
+
+    /**
+     * Create a copy of a resource.
+     *
+     * This will pass the original resource's JSON-LD to your callback. There,
+     * you may modify the JSON-LD if needed for the copy. Make sure to pass the
+     * JSON-LD by reference (using &) so modifications are preserved.
+     *
+     * @param string $resourceName
+     * @param Representation\RepresentationInterface $resource
+     * @param callable $callback
+     * @return Representation\RepresentationInterface
+     */
+    public function createResourceCopy(string $resourceName, Representation\RepresentationInterface $resource, callable $callback)
+    {
+        $jsonLd = json_decode(json_encode($resource), true);
+        $callback($jsonLd);
+        return $this->api->create($resourceName, $jsonLd)->getContent();
     }
 
     /**
@@ -274,6 +298,10 @@ class CopyResources
 
     /**
      * Recursive function to modify the site's navigation array.
+     *
+     * This will pass the original resource's navigation links to your callback.
+     * There, you may modify the link array if needed. Make sure to pass the
+     * link array by reference (using &) so modifications are preserved.
      *
      * @param array &$links
      * @param callable $callback
