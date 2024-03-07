@@ -17,18 +17,12 @@ class CopyResources
 
     protected $connection;
 
-    protected $originalIdentityMap;
-
     public function __construct(ApiManager $api, EntityManager $entityManager, EventManager $eventManager)
     {
         $this->api = $api;
         $this->entityManager = $entityManager;
         $this->eventManager = $eventManager;
         $this->connection = $entityManager->getConnection();
-
-        // Set the original identity map so we have a snapshot of the original
-        // state of the entity manager.
-        $this->originalIdentityMap = $entityManager->getUnitOfWork()->getIdentityMap();
     }
 
     /**
@@ -171,11 +165,8 @@ class CopyResources
 
         // Add navigation to the site. Note that we must add the navigation
         // after the pages are created above.
-
-        // Recursive function to prepare the navigation array.
-        $getLinks = function (&$links) use (&$getLinks, $coreNavLinkTypes, $sitePageMap) {
-            $linksCopy = [];
-            foreach ($links as &$link) {
+        if ($siteNavigation) {
+            $callback = function (&$link) use ($coreNavLinkTypes, $sitePageMap) {
                 // We must convert links introduced by modules to stubs because
                 // they likely contain data that are valid only within the
                 // context of the original site. We use stubs instead of removing
@@ -188,20 +179,9 @@ class CopyResources
                     // Get the page ID from the site page map.
                     $link['data']['id'] = $sitePageMap[$link['data']['id']];
                 }
-                if ($link['links']) {
-                    // Recursively follow sub-links.
-                    $link['links'] = $getLinks($link['links']);
-                }
-            }
-            return $links;
-        };
-        if ($siteNavigation) {
-            $getLinks($siteNavigation);
-            $sql = 'UPDATE site SET navigation = :navigation WHERE id = :site_copy_id';
-            $stmt = $this->connection->prepare($sql);
-            $stmt->bindValue('navigation', json_encode($siteNavigation));
-            $stmt->bindValue('site_copy_id', $siteCopy->id());
-            $stmt->executeStatement();
+            };
+            $this->modifySiteNavigation($siteNavigation, $callback);
+            $this->updateSiteNavigation($siteCopy->id(), $siteNavigation);
         }
 
         // Copy site settings.
@@ -220,26 +200,11 @@ class CopyResources
         $stmt->bindValue('site_id', $site->id());
         $stmt->executeStatement();
 
-        // Refresh the site copy to update homepage, navigation, etc. Instead of
-        // clearing the entity manager to force a refresh, detach entities that
-        // were not part of the original state of the entity manager to avoid
-        // "A new entity was found" Doctrine errors.
-        $this->entityManager->flush();
-        $identityMap = $this->entityManager->getUnitOfWork()->getIdentityMap();
-        foreach ($identityMap as $entityClass => $entities) {
-            foreach ($entities as $idHash => $entity) {
-                if (!isset($this->originalIdentityMap[$entityClass][$idHash])) {
-                    $this->entityManager->detach($entity);
-                }
-            }
-        }
-        $siteCopy = $this->api->read('sites', $siteCopy->id())->getContent();
-
         // Allow modules to copy their data.
         $eventArgs = [
             'copy_resources' => $this,
-            'site' => $site,
-            'site_copy' => $siteCopy,
+            'site_id' => $site->id(),
+            'site_copy_id' => $siteCopy->id(),
             'site_page_map' => $sitePageMap,
         ];
         $event = new Event('copy_resources.copy_site', null, $eventArgs);
@@ -252,10 +217,10 @@ class CopyResources
      * Convenience function used by modules to revert copied site block layout
      * names to their original name.
      *
-     * @param Representation\SiteRepresentation $siteCopy
+     * @param int $siteCopyId
      * @param string $originalLayoutName
      */
-    public function revertSiteBlockLayouts(Representation\SiteRepresentation $siteCopy, string $originalLayoutName)
+    public function revertSiteBlockLayouts(int $siteCopyId, string $originalLayoutName)
     {
         $sql = 'UPDATE site_page_block b
             INNER JOIN site_page p ON p.id = b.page_id
@@ -266,7 +231,7 @@ class CopyResources
         $stmt = $this->connection->prepare($sql);
         $stmt->bindValue('layout', $originalLayoutName);
         $stmt->bindValue('layout_copy', sprintf('%s__copy', $originalLayoutName));
-        $stmt->bindValue('site_copy_id', $siteCopy->id());
+        $stmt->bindValue('site_copy_id', $siteCopyId);
         $stmt->executeStatement();
     }
 
@@ -274,33 +239,69 @@ class CopyResources
      * Convenience function used by modules to revert copied site navigation
      * link types to their original name.
      *
-     * @param Representation\SiteRepresentation $siteCopy
+     * @param int $siteCopyId
      * @param string $originalLinkType
      */
-    public function revertSiteNavigationLinkTypes(Representation\SiteRepresentation $siteCopy, string $originalLinkType)
+    public function revertSiteNavigationLinkTypes(int $siteCopyId, string $originalLinkType)
     {
         // Recursive function to prepare the navigation array.
-        $getLinks = function (&$links) use (&$getLinks, $originalLinkType) {
-            foreach ($links as &$link) {
+        $siteNavigation = $this->getSiteNavigation($siteCopyId);
+        if ($siteNavigation) {
+            $callback = function (&$link) use ($originalLinkType) {
                 if (sprintf('%s__copy', $originalLinkType) === $link['type']) {
                     // Revert to the original name.
                     $link['type'] = $originalLinkType;
                 }
-                if ($link['links']) {
-                    // Recursively follow sub-links.
-                    $link['links'] = $getLinks($link['links']);
-                }
-            }
-            return $links;
-        };
-        $siteNavigation = $siteCopy->navigation();
-        if ($siteNavigation) {
-            $getLinks($siteNavigation);
-            $sql = 'UPDATE site SET navigation = :navigation WHERE id = :site_copy_id';
-            $stmt = $this->connection->prepare($sql);
-            $stmt->bindValue('navigation', json_encode($siteNavigation));
-            $stmt->bindValue('site_copy_id', $siteCopy->id());
-            $stmt->executeStatement();
+            };
+            $this->modifySiteNavigation($siteNavigation, $callback);
+            $this->updateSiteNavigation($siteCopyId, $siteNavigation);
         }
+    }
+
+    /**
+     * Convenience function to get the navigation array of a site.
+     *
+     * @param int $siteId
+     * @return array
+     */
+    public function getSiteNavigation(int $siteId)
+    {
+        $sql = 'SELECT navigation FROM site WHERE id = :site_copy_id';
+        $stmt = $this->connection->prepare($sql);
+        $stmt->bindValue('site_copy_id', $siteId);
+        return json_decode($stmt->executeQuery()->fetchOne(), true);
+    }
+
+    /**
+     * Recursive function to modify the site's navigation array.
+     *
+     * @param array &$links
+     * @param callable $callback
+     */
+    public function modifySiteNavigation(array &$links, callable $callback)
+    {
+        foreach ($links as &$link) {
+            // The callback function should modify the link array as necessary.
+            $callback($link);
+            if ($link['links']) {
+                // Recursively follow sub-links.
+                $link['links'] = $this->modifySiteNavigation($link['links'], $callback);
+            }
+        }
+        return $links;
+    }
+
+    /**
+     * Convenience function to update the navigation array of a site.
+     *
+     * @param int $siteId
+     */
+    public function updateSiteNavigation(int $siteId, array $siteNavigation)
+    {
+        $sql = 'UPDATE site SET navigation = :navigation WHERE id = :site_id';
+        $stmt = $this->connection->prepare($sql);
+        $stmt->bindValue('navigation', json_encode($siteNavigation));
+        $stmt->bindValue('site_id', $siteId);
+        $stmt->executeStatement();
     }
 }
