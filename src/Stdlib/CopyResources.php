@@ -29,9 +29,10 @@ class CopyResources
      * Copy an item resource.
      *
      * @param Representation\ItemRepresentation $item The original item
+     * @param array $options
      * @return Representation\ItemRepresentation The item copy
      */
-    public function copyItem(Representation\ItemRepresentation $item)
+    public function copyItem(Representation\ItemRepresentation $item, array $options = [])
     {
         $callback = function (&$jsonLd) {
             unset($jsonLd['o:owner']);
@@ -54,9 +55,10 @@ class CopyResources
      * Copy an item set resource.
      *
      * @param Representation\ItemSetRepresentation $itemSet The original item set
+     * @param array $options
      * @return Representation\ItemSetRepresentation The item set copy
      */
-    public function copyItemSet(Representation\ItemSetRepresentation $itemSet)
+    public function copyItemSet(Representation\ItemSetRepresentation $itemSet, array $options = [])
     {
         $callback = function (&$jsonLd) {
             unset($jsonLd['o:owner']);
@@ -85,9 +87,10 @@ class CopyResources
      * Copy a site page resource.
      *
      * @param Representation\SitePageRepresentation $sitePage The original site page
+     * @param array $options
      * @return Representation\SitePageRepresentation The site page copy
      */
-    public function copySitePage(Representation\SitePageRepresentation $sitePage)
+    public function copySitePage(Representation\SitePageRepresentation $sitePage, array $options = [])
     {
         // The slug must be unique. Get the copy iteration.
         $i = 0;
@@ -117,9 +120,10 @@ class CopyResources
      * Copy a site resource.
      *
      * @param Representation\SiteRepresentation $site The original site
+     * @param array $options
      * @return Representation\SiteRepresentation The site copy
      */
-    public function copySite(Representation\SiteRepresentation $site)
+    public function copySite(Representation\SiteRepresentation $site, array $options = [])
     {
         // Get service names from core config (not merged with modules config).
         // We do this for two reasons: 1) Because we don't need to update a
