@@ -257,9 +257,9 @@ class CopyResources
     /**
      * Create a copy of a resource.
      *
-     * This will pass the original resource's JSON-LD to your callback. There,
-     * you may modify the JSON-LD if needed for the copy. Make sure to pass the
-     * JSON-LD by reference (using &) so modifications are preserved.
+     * This will pass the original resource's JSON-LD array to your callback.
+     * There, you may modify the array if needed for the copy. Make sure to pass
+     * the array by reference (using &) so modifications are preserved.
      *
      * @param string $resourceName
      * @param Representation\RepresentationInterface $resource
@@ -278,9 +278,9 @@ class CopyResources
      * names to their original name.
      *
      * @param int $siteCopyId
-     * @param string $originalLayoutName
+     * @param string $originalLayout
      */
-    public function revertSiteBlockLayouts(int $siteCopyId, string $originalLayoutName)
+    public function revertSiteBlockLayouts(int $siteCopyId, string $originalLayout)
     {
         $sql = 'UPDATE site_page_block b
             INNER JOIN site_page p ON p.id = b.page_id
@@ -289,8 +289,8 @@ class CopyResources
             WHERE b.layout = :layout_copy
             AND s.id = :site_copy_id';
         $stmt = $this->connection->prepare($sql);
-        $stmt->bindValue('layout', $originalLayoutName);
-        $stmt->bindValue('layout_copy', sprintf('%s__copy', $originalLayoutName));
+        $stmt->bindValue('layout', $originalLayout);
+        $stmt->bindValue('layout_copy', sprintf('%s__copy', $originalLayout));
         $stmt->bindValue('site_copy_id', $siteCopyId);
         $stmt->executeStatement();
     }
@@ -321,23 +321,23 @@ class CopyResources
     /**
      * Convenience function to get the navigation array of a site.
      *
-     * @param int $siteId
+     * @param int $siteCopyId
      * @return array
      */
-    public function getSiteNavigation(int $siteId)
+    public function getSiteNavigation(int $siteCopyId)
     {
-        $sql = 'SELECT navigation FROM site WHERE id = :site_copy_id';
+        $sql = 'SELECT navigation FROM site WHERE id = :site_id';
         $stmt = $this->connection->prepare($sql);
-        $stmt->bindValue('site_copy_id', $siteId);
+        $stmt->bindValue('site_id', $siteCopyId);
         return json_decode($stmt->executeQuery()->fetchOne(), true);
     }
 
     /**
      * Recursive function to modify the site's navigation array.
      *
-     * This will pass the original resource's navigation links to your callback.
-     * There, you may modify the link array if needed. Make sure to pass the
-     * link array by reference (using &) so modifications are preserved.
+     * This will pass the original resource's navigation link array to your
+     * callback. There, you may modify the array if needed. Make sure to pass
+     * the array by reference (using &) so modifications are preserved.
      *
      * @param array &$links
      * @param callable $callback
@@ -358,14 +358,51 @@ class CopyResources
     /**
      * Convenience function to update the navigation array of a site.
      *
-     * @param int $siteId
+     * @param int $siteCopyId
      */
-    public function updateSiteNavigation(int $siteId, array $siteNavigation)
+    public function updateSiteNavigation(int $siteCopyId, array $siteNavigation)
     {
         $sql = 'UPDATE site SET navigation = :navigation WHERE id = :site_id';
         $stmt = $this->connection->prepare($sql);
         $stmt->bindValue('navigation', json_encode($siteNavigation));
-        $stmt->bindValue('site_id', $siteId);
+        $stmt->bindValue('site_id', $siteCopyId);
         $stmt->executeStatement();
+    }
+
+    /**
+     * Modify site page blocks data.
+     *
+     * This will pass the original block's data array to your callback. There,
+     * you may modify the array if needed for the copy. Make sure to pass the
+     * array by reference (using &) so modifications are preserved.
+     *
+     * @param int $siteCopyId
+     * @param string $originalLayout
+     * @param callable $callback
+     */
+    public function modifySiteBlockData(int $siteCopyId, string $originalLayout, callable $callback)
+    {
+        // Get all page blocks of the passed site and layout.
+        $sql = 'SELECT b.id, b.data
+            FROM site_page_block b
+            INNER JOIN site_page p ON p.id = b.page_id
+            INNER JOIN site s ON s.id = p.site_id
+            WHERE s.id = :site_copy_id
+            AND b.layout = :layout';
+        $stmt = $this->connection->prepare($sql);
+        $stmt->bindValue('site_copy_id', $siteCopyId);
+        $stmt->bindValue('layout', $originalLayout);
+        $siteBlocks = $stmt->executeQuery()->fetchAllAssociative();
+
+        // Modify the page block data and update the page block.
+        $sql = 'UPDATE site_page_block SET data = :data WHERE id = :id';
+        $stmt = $this->connection->prepare($sql);
+        foreach ($siteBlocks as $siteBlock) {
+            $data = json_decode($siteBlock['data'], true);
+            $callback($data);
+            $stmt->bindValue('data', json_encode($data));
+            $stmt->bindValue('id', $siteBlock['id']);
+            $stmt->executeStatement();
+        }
     }
 }
