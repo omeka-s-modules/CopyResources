@@ -198,25 +198,21 @@ class CopyResources
 
         // Add navigation to the site. Note that we must add the navigation
         // after the pages are created above.
-        $siteNavigation = $site->navigation();
-        if ($siteNavigation) {
-            $callback = function (&$link) use ($coreNavLinkTypes, $sitePageMap) {
-                // We must convert links introduced by modules to stubs because
-                // they likely contain data that are valid only within the
-                // context of the original site. We use stubs instead of removing
-                // the links becuase removing them may adversely affect the flow
-                // of the copied navigation.
-                if (!in_array($link['type'], $coreNavLinkTypes)) {
-                    $link['type'] = sprintf('%s__copy', $link['type']);
-                }
-                if ('page' === $link['type']) {
-                    // Get the page ID from the site page map.
-                    $link['data']['id'] = $sitePageMap[$link['data']['id']];
-                }
-            };
-            $this->modifySiteNavigation($siteNavigation, $callback);
-            $this->updateSiteNavigation($siteCopy->id(), $siteNavigation);
-        }
+        $callback = function (&$link) use ($coreNavLinkTypes, $sitePageMap) {
+            // We must convert links introduced by modules to stubs because
+            // they likely contain data that are valid only within the
+            // context of the original site. We use stubs instead of removing
+            // the links becuase removing them may adversely affect the flow
+            // of the copied navigation.
+            if (!in_array($link['type'], $coreNavLinkTypes)) {
+                $link['type'] = sprintf('%s__copy', $link['type']);
+            }
+            if ('page' === $link['type']) {
+                // Get the page ID from the site page map.
+                $link['data']['id'] = $sitePageMap[$link['data']['id']];
+            }
+        };
+        $this->modifySiteNavigation([$site->id(), $siteCopy->id()], null, $callback);
 
         // Copy site settings.
         $sql = 'INSERT INTO site_setting (id, site_id, value)
@@ -281,10 +277,10 @@ class CopyResources
      * Convenience function used by modules to revert copied site block layout
      * names to their original name.
      *
-     * @param int $siteCopyId
+     * @param int $siteId
      * @param string $originalLayout
      */
-    public function revertSiteBlockLayouts(int $siteCopyId, string $originalLayout)
+    public function revertSiteBlockLayouts(int $siteId, string $originalLayout)
     {
         $sql = 'UPDATE site_page_block b
             INNER JOIN site_page p ON p.id = b.page_id
@@ -295,7 +291,7 @@ class CopyResources
         $stmt = $this->connection->prepare($sql);
         $stmt->bindValue('layout', $originalLayout);
         $stmt->bindValue('layout_copy', sprintf('%s__copy', $originalLayout));
-        $stmt->bindValue('site_copy_id', $siteCopyId);
+        $stmt->bindValue('site_copy_id', $siteId);
         $stmt->executeStatement();
     }
 
@@ -303,74 +299,89 @@ class CopyResources
      * Convenience function used by modules to revert copied site navigation
      * link types to their original name.
      *
-     * @param int $siteCopyId
+     * @param int $siteId
      * @param string $originalLinkType
      */
-    public function revertSiteNavigationLinkTypes(int $siteCopyId, string $originalLinkType)
+    public function revertSiteNavigationLinkTypes(int $siteId, string $originalLinkType)
     {
-        // Recursive function to prepare the navigation array.
-        $siteNavigation = $this->getSiteNavigation($siteCopyId);
-        if ($siteNavigation) {
-            $callback = function (&$link) use ($originalLinkType) {
-                if (sprintf('%s__copy', $originalLinkType) === $link['type']) {
-                    // Revert to the original name.
-                    $link['type'] = $originalLinkType;
-                }
-            };
-            $this->modifySiteNavigation($siteNavigation, $callback);
-            $this->updateSiteNavigation($siteCopyId, $siteNavigation);
-        }
+        $callback = function (&$link) use ($originalLinkType) {
+            if (sprintf('%s__copy', $originalLinkType) === $link['type']) {
+                // Revert to the original name.
+                $link['type'] = $originalLinkType;
+            }
+        };
+        $this->modifySiteNavigation($siteId, null, $callback);
     }
 
     /**
-     * Convenience function to get the navigation array of a site.
-     *
-     * @param int $siteCopyId
-     * @return array
-     */
-    public function getSiteNavigation(int $siteCopyId)
-    {
-        $sql = 'SELECT navigation FROM site WHERE id = :site_id';
-        $stmt = $this->connection->prepare($sql);
-        $stmt->bindValue('site_id', $siteCopyId);
-        return json_decode($stmt->executeQuery()->fetchOne(), true);
-    }
-
-    /**
-     * Recursive function to modify the site's navigation array.
+     * Modify site navigation.
      *
      * This will pass the original resource's navigation link array to your
      * callback. There, you may modify the array if needed. Make sure to pass
      * the array by reference (using &) so modifications are preserved.
      *
-     * @param array &$links
+     * @param int|array $siteId The site ID or an array containing the "from ID" and "to ID"
+     * @param ?string $linkType
      * @param callable $callback
      */
-    public function modifySiteNavigation(array &$links, callable $callback)
+    public function modifySiteNavigation(int|array $siteId, ?string $linkType, callable $callback)
     {
-        foreach ($links as &$link) {
-            // The callback function should modify the link array as necessary.
-            $callback($link);
-            if ($link['links']) {
-                // Recursively follow sub-links.
-                $link['links'] = $this->modifySiteNavigation($link['links'], $callback);
-            }
+        if (is_array($siteId)) {
+            $fromSiteId = $siteId[0];
+            $toSiteId = $siteId[1];
+        } else {
+            $fromSiteId = $siteId;
+            $toSiteId = $siteId;
         }
-        return $links;
+
+        // Get site navigation.
+        $sql = 'SELECT navigation FROM site WHERE id = :site_copy_id';
+        $stmt = $this->connection->prepare($sql);
+        $stmt->bindValue('site_copy_id', $fromSiteId);
+        $siteNavigation = json_decode($stmt->executeQuery()->fetchOne(), true);
+
+        if ($siteNavigation) {
+            // Recursively modify the navigation array.
+            $this->recurseSiteNavigation($siteNavigation, $linkType, $callback);
+
+            // Update the navigation.
+            $sql = 'UPDATE site SET navigation = :navigation WHERE id = :site_copy_id';
+            $stmt = $this->connection->prepare($sql);
+            $stmt->bindValue('navigation', json_encode($siteNavigation));
+            $stmt->bindValue('site_copy_id', $toSiteId);
+            $stmt->executeStatement();
+        }
     }
 
     /**
-     * Convenience function to update the navigation array of a site.
+     * Recursive function to modify the site's navigation array.
      *
-     * @param int $siteCopyId
+     * The callback function should modify the link array as necessary.
+     *
+     * @param array &$links
+     * @param ?string $linkType
+     * @param callable $callback
      */
-    public function updateSiteNavigation(int $siteCopyId, array $siteNavigation)
+    public function recurseSiteNavigation(array &$links, ?string $linkType, callable $callback)
     {
-        $sql = 'UPDATE site SET navigation = :navigation WHERE id = :site_id';
-        $stmt = $this->connection->prepare($sql);
-        $stmt->bindValue('navigation', json_encode($siteNavigation));
-        $stmt->bindValue('site_id', $siteCopyId);
-        $stmt->executeStatement();
+        foreach ($links as &$link) {
+            if ($linkType) {
+                // Filter by link type.
+                if ($linkType === $link['type']) {
+                    $callback($link);
+                } else {
+                    // This is not the link type. Do nothing.
+                }
+            } else {
+                // Filter all links.
+                $callback($link);
+            }
+            if ($link['links']) {
+                // Recursively follow sub-links.
+                $link['links'] = $this->recurseSiteNavigation($link['links'], $linkType, $callback);
+            }
+        }
+        return $links;
     }
 
     /**
@@ -380,11 +391,11 @@ class CopyResources
      * you may modify the array if needed for the copy. Make sure to pass the
      * array by reference (using &) so modifications are preserved.
      *
-     * @param int $siteCopyId
+     * @param int $siteId
      * @param string $originalLayout
      * @param callable $callback
      */
-    public function modifySiteBlockData(int $siteCopyId, string $originalLayout, callable $callback)
+    public function modifySiteBlockData(int $siteId, string $originalLayout, callable $callback)
     {
         // Get all page blocks of the passed site and layout.
         $sql = 'SELECT b.id, b.data
@@ -394,7 +405,7 @@ class CopyResources
             WHERE s.id = :site_copy_id
             AND b.layout = :layout';
         $stmt = $this->connection->prepare($sql);
-        $stmt->bindValue('site_copy_id', $siteCopyId);
+        $stmt->bindValue('site_copy_id', $siteId);
         $stmt->bindValue('layout', $originalLayout);
         $siteBlocks = $stmt->executeQuery()->fetchAllAssociative();
 
