@@ -324,14 +324,14 @@ class CopyResources
      * @param ?string $linkType
      * @param callable $callback
      */
-    public function modifySiteNavigation(int|array $siteId, ?string $linkType, callable $callback)
+    public function modifySiteNavigation($siteId, ?string $linkType, callable $callback)
     {
         if (is_array($siteId)) {
             $fromSiteId = $siteId[0];
             $toSiteId = $siteId[1];
         } else {
-            $fromSiteId = $siteId;
-            $toSiteId = $siteId;
+            $fromSiteId = (int) $siteId;
+            $toSiteId = (int) $siteId;
         }
 
         // Get site navigation.
