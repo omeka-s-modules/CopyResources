@@ -92,6 +92,7 @@ class IndexController extends AbstractActionController
             }
         } else {
             // Redirect to the previous page.
+            $this->messenger()->addFormErrors($form);
             $url = $this->getRequest()->getHeader('Referer')->getUri();
             return $this->redirect()->toUrl($url);
         }
