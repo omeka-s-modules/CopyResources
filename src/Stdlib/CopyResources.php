@@ -34,21 +34,14 @@ class CopyResources
      */
     public function copyItem(Representation\ItemRepresentation $item, array $options = [])
     {
-        $callback = function (&$jsonLd) use ($options) {
+        $preCallback = function (&$jsonLd) use ($options) {
             unset($jsonLd['o:owner']);
             unset($jsonLd['o:primary_media']);
             unset($jsonLd['o:media']);
             $jsonLd['o:is_public'] = $this->getIsPublic($jsonLd, $options);
         };
-        $itemCopy = $this->createResourceCopy('items', $item, $callback);
 
-        // Allow modules to copy their data.
-        $eventArgs = [
-            'resource' => $item,
-            'resource_copy' => $itemCopy,
-        ];
-        $this->triggerEvent('copy_resources.copy_item', $eventArgs);
-
+        $itemCopy = $this->createResourceCopy('items', $item, $preCallback);
         return $itemCopy;
     }
 
@@ -61,27 +54,23 @@ class CopyResources
      */
     public function copyItemSet(Representation\ItemSetRepresentation $itemSet, array $options = [])
     {
-        $callback = function (&$jsonLd) use ($options) {
+        $preCallback = function (&$jsonLd) use ($options) {
             unset($jsonLd['o:owner']);
             $jsonLd['o:is_public'] = $this->getIsPublic($jsonLd, $options);
         };
-        $itemSetCopy = $this->createResourceCopy('item_sets', $itemSet, $callback);
+        $postCallback = function ($itemSetCopy) use ($itemSet) {
+            // Copy item/item-set links.
+            $sql = 'INSERT INTO item_item_set (item_id, item_set_id)
+                SELECT item_id, :item_set_copy_id
+                FROM item_item_set
+                WHERE item_set_id = :item_set_id';
+            $stmt = $this->connection->prepare($sql);
+            $stmt->bindValue('item_set_copy_id', $itemSetCopy->id());
+            $stmt->bindValue('item_set_id', $itemSet->id());
+            $stmt->executeStatement();
+        };
 
-        // Copy item/item-set links.
-        $sql = 'INSERT INTO item_item_set (item_id, item_set_id)
-            SELECT item_id, :item_set_copy_id FROM item_item_set WHERE item_set_id = :item_set_id';
-        $stmt = $this->connection->prepare($sql);
-        $stmt->bindValue('item_set_copy_id', $itemSetCopy->id());
-        $stmt->bindValue('item_set_id', $itemSet->id());
-        $stmt->executeStatement();
-
-        // Allow modules to copy their data.
-        $eventArgs = [
-            'resource' => $itemSet,
-            'resource_copy' => $itemSetCopy,
-        ];
-        $this->triggerEvent('copy_resources.copy_item_set', $eventArgs);
-
+        $itemSetCopy = $this->createResourceCopy('item_sets', $itemSet, $preCallback, $postCallback);
         return $itemSetCopy;
     }
 
@@ -102,20 +91,13 @@ class CopyResources
                 ->findOneBy(['slug' => sprintf('%s-%s', $sitePage->slug(), ++$i)]);
         } while ($hasSitePage);
 
-        $callback = function (&$jsonLd) use ($options, $sitePage, $i) {
+        $preCallback = function (&$jsonLd) use ($options, $sitePage, $i) {
             // Append the copy iteration to the slug.
             $jsonLd['o:slug'] = sprintf('%s-%s', $sitePage->slug(), $i);
             $jsonLd['o:is_public'] = $this->getIsPublic($jsonLd, $options);
         };
-        $sitePageCopy = $this->createResourceCopy('site_pages', $sitePage, $callback);
 
-        // Allow modules to copy their data.
-        $eventArgs = [
-            'resource' => $sitePage,
-            'resource_copy' => $sitePageCopy,
-        ];
-        $this->triggerEvent('copy_resources.copy_site_page', $eventArgs);
-
+        $sitePageCopy = $this->createResourceCopy('site_pages', $sitePage, $preCallback);
         return $sitePageCopy;
     }
 
@@ -128,21 +110,6 @@ class CopyResources
      */
     public function copySite(Representation\SiteRepresentation $site, array $options = [])
     {
-        // Get service names from core config (not merged with modules config).
-        // We do this for two reasons: 1) Because we don't need to update a
-        // local copy of the block layouts and link types when they're updated
-        // in config; and 2) Because block layouts and link types added by
-        // modules are likely invalid outside the context of the original site.
-        $coreConfig = include sprintf('%s/application/config/module.config.php', OMEKA_PATH);
-        $coreBlockLayouts = array_merge(
-            array_keys($coreConfig['block_layouts']['invokables']),
-            array_keys($coreConfig['block_layouts']['factories'])
-        );
-        $coreNavLinkTypes = array_merge(
-            array_keys($coreConfig['navigation_links']['invokables']),
-            array_keys($coreConfig['navigation_links']['factories'])
-        );
-
         // The slug must be unique. Get the copy iteration.
         $i = 0;
         do {
@@ -151,8 +118,7 @@ class CopyResources
                 ->findOneBy(['slug' => sprintf('%s-%s', $site->slug(), ++$i)]);
         } while ($hasSite);
 
-        // Copy the site.
-        $callback = function (&$jsonLd) use ($options, $site, $i) {
+        $preCallback = function (&$jsonLd) use ($options, $site, $i) {
             // Append the copy iteration to the slug.
             $jsonLd['o:slug'] = sprintf('%s-%s', $site->slug(), $i);
             // Set to an empty array to avoid the auto-generated "Browse" link.
@@ -162,86 +128,94 @@ class CopyResources
             unset($jsonLd['o:homepage']);
             $jsonLd['o:is_public'] = $this->getIsPublic($jsonLd, $options);
         };
-        $siteCopy = $this->createResourceCopy('sites', $site, $callback);
+        $postCallback = function ($siteCopy) use ($site) {
+            // Get service names from core config (not merged with modules config).
+            // We do this for two reasons: 1) Because we don't need to update a
+            // local copy of the block layouts and link types when they're updated
+            // in config; and 2) Because block layouts and link types added by
+            // modules are likely invalid outside the context of the original site.
+            $coreConfig = include sprintf('%s/application/config/module.config.php', OMEKA_PATH);
+            $coreBlockLayouts = array_merge(
+                array_keys($coreConfig['block_layouts']['invokables']),
+                array_keys($coreConfig['block_layouts']['factories'])
+            );
+            $coreNavLinkTypes = array_merge(
+                array_keys($coreConfig['navigation_links']['invokables']),
+                array_keys($coreConfig['navigation_links']['factories'])
+            );
 
-        // Delete the auto-generated "Welcome" page.
-        $this->api->delete('site_pages', array_key_first($siteCopy->pages()));
+            // Delete the auto-generated "Welcome" page.
+            $this->api->delete('site_pages', array_key_first($siteCopy->pages()));
 
-        // Copy site pages. Set a high per_page to avoid paginating.
-        $sitePages = $this->api->search('site_pages', ['site_id' => $site->id(), 'per_page' => 1000])->getContent();
-        $sitePageMap = [];
-        foreach ($sitePages as $sitePage) {
-            $callback = function (&$jsonLd) use ($siteCopy, $coreBlockLayouts) {
-                $jsonLd['o:site']['o:id'] = $siteCopy->id();
-                // We must convert block layouts introduced by modules to stubs
-                // because they likely contain data that are valid only within the
-                // context of the original site. We use stubs instead of removing
-                // the blocks becuase removing them may adversely affect the flow of
-                // the copied page.
-                foreach ($jsonLd['o:block'] as $index => $block) {
-                    $blockLayout = $block['o:layout'];
-                    if (!in_array($blockLayout, $coreBlockLayouts)) {
-                        $jsonLd['o:block'][$index]['o:layout'] = sprintf('%s__copy', $blockLayout);
+            // Copy site pages. Set a high per_page to avoid paginating.
+            $sitePages = $this->api->search('site_pages', ['site_id' => $site->id(), 'per_page' => 1000])->getContent();
+            $sitePageMap = [];
+            foreach ($sitePages as $sitePage) {
+                $preCallback = function (&$jsonLd) use ($siteCopy, $coreBlockLayouts) {
+                    $jsonLd['o:site']['o:id'] = $siteCopy->id();
+                    // We must convert block layouts introduced by modules to stubs
+                    // because they likely contain data that are valid only within the
+                    // context of the original site. We use stubs instead of removing
+                    // the blocks becuase removing them may adversely affect the flow of
+                    // the copied page.
+                    foreach ($jsonLd['o:block'] as $index => $block) {
+                        $blockLayout = $block['o:layout'];
+                        if (!in_array($blockLayout, $coreBlockLayouts)) {
+                            $jsonLd['o:block'][$index]['o:layout'] = sprintf('%s__copy', $blockLayout);
+                        }
                     }
+                };
+                $sitePageCopy = $this->createResourceCopy('site_pages', $sitePage, $preCallback);
+                $sitePageMap[$sitePage->id()] = $sitePageCopy->id();
+            }
+
+            // Add homepage to the site. Note that we must add the homepage after
+            // the page is created above.
+            $siteHomepage = $site->homepage();
+            if ($siteHomepage) {
+                $sql = 'UPDATE site SET homepage_id = :homepage_id WHERE id = :site_copy_id';
+                $stmt = $this->connection->prepare($sql);
+                $stmt->bindValue('homepage_id', $sitePageMap[$siteHomepage->id()]);
+                $stmt->bindValue('site_copy_id', $siteCopy->id());
+                $stmt->executeStatement();
+            }
+
+            // Add navigation to the site. Note that we must add the navigation
+            // after the pages are created above.
+            $callback = function (&$link) use ($coreNavLinkTypes, $sitePageMap) {
+                // We must convert links introduced by modules to stubs because
+                // they likely contain data that are valid only within the
+                // context of the original site. We use stubs instead of removing
+                // the links becuase removing them may adversely affect the flow
+                // of the copied navigation.
+                if (!in_array($link['type'], $coreNavLinkTypes)) {
+                    $link['type'] = sprintf('%s__copy', $link['type']);
+                }
+                if ('page' === $link['type']) {
+                    // Get the page ID from the site page map.
+                    $link['data']['id'] = $sitePageMap[$link['data']['id']];
                 }
             };
-            $sitePageCopy = $this->createResourceCopy('site_pages', $sitePage, $callback);
-            $sitePageMap[$sitePage->id()] = $sitePageCopy->id();
-        }
+            $this->modifySiteNavigation([$site->id(), $siteCopy->id()], null, $callback);
 
-        // Add homepage to the site. Note that we must add the homepage after
-        // the page is created above.
-        $siteHomepage = $site->homepage();
-        if ($siteHomepage) {
-            $sql = 'UPDATE site SET homepage_id = :homepage_id WHERE id = :site_copy_id';
+            // Copy site settings.
+            $sql = 'INSERT INTO site_setting (id, site_id, value)
+                SELECT id, :site_copy_id, value FROM site_setting WHERE site_id = :site_id';
             $stmt = $this->connection->prepare($sql);
-            $stmt->bindValue('homepage_id', $sitePageMap[$siteHomepage->id()]);
             $stmt->bindValue('site_copy_id', $siteCopy->id());
+            $stmt->bindValue('site_id', $site->id());
             $stmt->executeStatement();
-        }
 
-        // Add navigation to the site. Note that we must add the navigation
-        // after the pages are created above.
-        $callback = function (&$link) use ($coreNavLinkTypes, $sitePageMap) {
-            // We must convert links introduced by modules to stubs because
-            // they likely contain data that are valid only within the
-            // context of the original site. We use stubs instead of removing
-            // the links becuase removing them may adversely affect the flow
-            // of the copied navigation.
-            if (!in_array($link['type'], $coreNavLinkTypes)) {
-                $link['type'] = sprintf('%s__copy', $link['type']);
-            }
-            if ('page' === $link['type']) {
-                // Get the page ID from the site page map.
-                $link['data']['id'] = $sitePageMap[$link['data']['id']];
-            }
+            // Copy site/item links.
+            $sql = 'INSERT INTO item_site (item_id, site_id)
+                SELECT item_id, :site_copy_id FROM item_site WHERE site_id = :site_id';
+            $stmt = $this->connection->prepare($sql);
+            $stmt->bindValue('site_copy_id', $siteCopy->id());
+            $stmt->bindValue('site_id', $site->id());
+            $stmt->executeStatement();
         };
-        $this->modifySiteNavigation([$site->id(), $siteCopy->id()], null, $callback);
 
-        // Copy site settings.
-        $sql = 'INSERT INTO site_setting (id, site_id, value)
-            SELECT id, :site_copy_id, value FROM site_setting WHERE site_id = :site_id';
-        $stmt = $this->connection->prepare($sql);
-        $stmt->bindValue('site_copy_id', $siteCopy->id());
-        $stmt->bindValue('site_id', $site->id());
-        $stmt->executeStatement();
-
-        // Copy site/item links.
-        $sql = 'INSERT INTO item_site (item_id, site_id)
-            SELECT item_id, :site_copy_id FROM item_site WHERE site_id = :site_id';
-        $stmt = $this->connection->prepare($sql);
-        $stmt->bindValue('site_copy_id', $siteCopy->id());
-        $stmt->bindValue('site_id', $site->id());
-        $stmt->executeStatement();
-
-        // Allow modules to copy their data.
-        $eventArgs = [
-            'resource' => $site,
-            'resource_copy' => $siteCopy,
-            'site_page_map' => $sitePageMap,
-        ];
-        $this->triggerEvent('copy_resources.copy_site', $eventArgs);
-
+        $siteCopy = $this->createResourceCopy('sites', $site, $preCallback, $postCallback);
         return $siteCopy;
     }
 
@@ -266,45 +240,62 @@ class CopyResources
     }
 
     /**
-     * Trigger an event.
-     *
-     * @param string $eventName
-     * @param array $eventArgs
-     */
-    public function triggerEvent(string $eventName, array $eventArgs)
-    {
-        $eventArgs['copy_resources'] = $this; // Always pass $this
-        $event = new Event($eventName, null, $eventArgs);
-        $this->eventManager->triggerEvent($event);
-    }
-
-    /**
      * Create a copy of a resource.
      *
-     * This will pass the original resource's JSON-LD array to your callback.
+     * This will pass the original resource's JSON-LD array to your $preCallback.
      * There, you may modify the array if needed for the copy. Make sure to pass
      * the array by reference (using &) so modifications are preserved.
      *
+     * This will pass the resource copy to your $postCallback. There, you may
+     * perform any actions needed to complete the copy.
+     *
      * @param string $resourceName
      * @param Representation\RepresentationInterface $resource
-     * @param callable $callback
+     * @param callable $preCallback
+     * @param callable $postCallback
      * @return Representation\RepresentationInterface
      */
-    public function createResourceCopy(string $resourceName, Representation\RepresentationInterface $resource, callable $callback)
+    public function createResourceCopy(string $resourceName, Representation\RepresentationInterface $resource, callable $preCallback = null, callable $postCallback = null)
     {
         $jsonLd = json_decode(json_encode($resource), true);
-        $callback($jsonLd);
 
-        // Allow modules to modify the JSON-LD prior to copying.
+        // Trigger the resource.pre event. Intended to allow modules to modify
+        // the JSON-LD before the resource has been copied.
         $eventArgs = $this->eventManager->prepareArgs([
+            'copy_resources' => $this,
             'resource' => $resource,
             'json_ld' => $jsonLd,
         ]);
         $eventName = sprintf('copy_resources.%s.pre', $resourceName);
         $event = new Event($eventName, null, $eventArgs);
         $this->eventManager->triggerEvent($event);
+        $jsonLd = $eventArgs['json_ld'];
 
-        return $this->api->create($resourceName, $eventArgs['json_ld'])->getContent();
+        // Call the internal pre-copy callback.
+        if ($preCallback) {
+            $preCallback($jsonLd);
+        }
+
+        // Copy the resource.
+        $resourceCopy = $this->api->create($resourceName, $jsonLd)->getContent();
+
+        // Call the internal post-copy callback.
+        if ($postCallback) {
+            $postCallback($resourceCopy);
+        }
+
+        // Trigger the resource.post event. Intended to allow modules to copy
+        // their data after the resource has been copied.
+        $eventArgs = [
+            'copy_resources' => $this,
+            'resource' => $resource,
+            'resource_copy' => $resourceCopy,
+        ];
+        $eventName = sprintf('copy_resources.%s.post', $resourceName);
+        $event = new Event($eventName, null, $eventArgs);
+        $this->eventManager->triggerEvent($event);
+
+        return $resourceCopy;
     }
 
     /**
