@@ -11,8 +11,8 @@ This module provides several events when other modules may do something after co
 have been made.
 
 - `copy_resources.*.pre`: Do something before copying a resource. Replace `*` with the resource name. Params:
-    -`resource`: The original resource
-    -`json_ld`: The JSON-LD used to copy the resource. Modules may modify the JSON-LD and send it back using `$event->setParam('json_ld', $jsonLd)`
+    - `resource`: The original resource
+    - `json_ld`: The JSON-LD used to copy the resource. Modules may modify the JSON-LD and send it back using `$event->setParam('json_ld', $jsonLd)`
 - `copy_resources.copy_item`: Do something after a user copies an item. Params:
     - `resource`: The original item
     - `resource_copy`: The item copy
