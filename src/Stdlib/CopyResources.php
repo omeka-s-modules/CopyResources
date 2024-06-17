@@ -294,7 +294,17 @@ class CopyResources
     {
         $jsonLd = json_decode(json_encode($resource), true);
         $callback($jsonLd);
-        return $this->api->create($resourceName, $jsonLd)->getContent();
+
+        // Allow modules to modify the JSON-LD prior to copying.
+        $eventArgs = $this->eventManager->prepareArgs([
+            'resource' => $resource,
+            'json_ld' => $jsonLd,
+        ]);
+        $eventName = sprintf('copy_resources.%s.pre', $resourceName);
+        $event = new Event($eventName, null, $eventArgs);
+        $this->eventManager->triggerEvent($event);
+
+        return $this->api->create($resourceName, $eventArgs['json_ld'])->getContent();
     }
 
     /**
