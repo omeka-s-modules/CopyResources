@@ -34,10 +34,11 @@ class CopyResources
      */
     public function copyItem(Representation\ItemRepresentation $item, array $options = [])
     {
-        $callback = function (&$jsonLd) {
+        $callback = function (&$jsonLd) use ($options) {
             unset($jsonLd['o:owner']);
             unset($jsonLd['o:primary_media']);
             unset($jsonLd['o:media']);
+            $jsonLd['o:is_public'] = $this->getIsPublic($jsonLd, $options);
         };
         $itemCopy = $this->createResourceCopy('items', $item, $callback);
 
@@ -60,8 +61,9 @@ class CopyResources
      */
     public function copyItemSet(Representation\ItemSetRepresentation $itemSet, array $options = [])
     {
-        $callback = function (&$jsonLd) {
+        $callback = function (&$jsonLd) use ($options) {
             unset($jsonLd['o:owner']);
+            $jsonLd['o:is_public'] = $this->getIsPublic($jsonLd, $options);
         };
         $itemSetCopy = $this->createResourceCopy('item_sets', $itemSet, $callback);
 
@@ -100,9 +102,10 @@ class CopyResources
                 ->findOneBy(['slug' => sprintf('%s-%s', $sitePage->slug(), ++$i)]);
         } while ($hasSitePage);
 
-        $callback = function (&$jsonLd) use ($sitePage, $i) {
+        $callback = function (&$jsonLd) use ($options, $sitePage, $i) {
             // Append the copy iteration to the slug.
             $jsonLd['o:slug'] = sprintf('%s-%s', $sitePage->slug(), $i);
+            $jsonLd['o:is_public'] = $this->getIsPublic($jsonLd, $options);
         };
         $sitePageCopy = $this->createResourceCopy('site_pages', $sitePage, $callback);
 
@@ -149,7 +152,7 @@ class CopyResources
         } while ($hasSite);
 
         // Copy the site.
-        $callback = function (&$jsonLd) use ($site, $i) {
+        $callback = function (&$jsonLd) use ($options, $site, $i) {
             // Append the copy iteration to the slug.
             $jsonLd['o:slug'] = sprintf('%s-%s', $site->slug(), $i);
             // Set to an empty array to avoid the auto-generated "Browse" link.
@@ -157,6 +160,7 @@ class CopyResources
             unset($jsonLd['o:owner']);
             unset($jsonLd['o:page']);
             unset($jsonLd['o:homepage']);
+            $jsonLd['o:is_public'] = $this->getIsPublic($jsonLd, $options);
         };
         $siteCopy = $this->createResourceCopy('sites', $site, $callback);
 
@@ -239,6 +243,26 @@ class CopyResources
         $this->triggerEvent('copy_resources.copy_site', $eventArgs);
 
         return $siteCopy;
+    }
+
+    /**
+     * Get the "o:is_public" for the copied resource.
+     *
+     * @param array $jsonLd
+     * @param array $options
+     * @return bool
+     */
+    public function getIsPublic(array $jsonLd, array $options)
+    {
+        $visibility = $options['visibility'] ?? null;
+        switch ($visibility) {
+            case 'public':
+                return true;
+            case 'private':
+                return false;
+            default:
+                return (bool) $jsonLd['o:is_public'];
+        }
     }
 
     /**
