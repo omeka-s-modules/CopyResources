@@ -169,6 +169,36 @@ class CopyResources
                 $sitePageMap[$sitePage->id()] = $sitePageCopy->id();
             }
 
+            $sql = 'SELECT spb.id, spb.data
+                FROM  site_page_block spb
+                INNER JOIN site_page sp ON sp.id = spb.page_id
+                WHERE sp.site_id = :site_copy_id
+                AND spb.layout = :layout';
+            $stmt = $this->connection->prepare($sql);
+            $stmt->bindValue('site_copy_id', $siteCopy->id());
+            $stmt->bindValue('layout', 'listOfPages');
+            $pageBlocks = $stmt->executeQuery()->fetchAllAssociative();
+            $recursePageList = function (array &$pages) use ($sitePageMap) {
+                foreach ($pages as $index => $page) {
+                    $pages[$index]['data']['data']['id'] = $sitePageMap[$pages[$index]['data']['data']['id']];
+                    if (isset($pages[$index]['children']) && $pages[$index]['children']) {
+                        $recursePageList($pages[$index]['children']);
+                    }
+                }
+            };
+            foreach ($pageBlocks as $pageBlock) {
+                $data = json_decode($pageBlock['data'], true);
+                $pageList = json_decode($data['pagelist'], true);
+
+                echo '<pre>';
+                print_r($pageList);
+                print_r($recursePageList($pageList));
+                exit;
+
+                // @todo: Recurse the $pageList and use $sitePageMap to map [data][id]
+                // and correct the [url]. Then save back to the database.
+            }
+
             // Add homepage to the site. Note that we must add the homepage after
             // the page is created above.
             $siteHomepage = $site->homepage();
