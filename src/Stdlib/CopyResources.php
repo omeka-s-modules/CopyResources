@@ -169,34 +169,28 @@ class CopyResources
                 $sitePageMap[$sitePage->id()] = $sitePageCopy->id();
             }
 
-            $sql = 'SELECT spb.id, spb.data
-                FROM  site_page_block spb
+            // Set the correct page IDs to "listOfPages" blocks. Normally we'd
+            // modify block data while copying site pages above, but "listOfPages"
+            // blocks reference pages that aren't created until now.
+            $sqlSelect = 'SELECT spb.id, spb.data
+                FROM site_page_block spb
                 INNER JOIN site_page sp ON sp.id = spb.page_id
                 WHERE sp.site_id = :site_copy_id
-                AND spb.layout = :layout';
-            $stmt = $this->connection->prepare($sql);
-            $stmt->bindValue('site_copy_id', $siteCopy->id());
-            $stmt->bindValue('layout', 'listOfPages');
-            $pageBlocks = $stmt->executeQuery()->fetchAllAssociative();
-            $recursePageList = function (array &$pages) use ($sitePageMap) {
-                foreach ($pages as $index => $page) {
-                    $pages[$index]['data']['data']['id'] = $sitePageMap[$pages[$index]['data']['data']['id']];
-                    if (isset($pages[$index]['children']) && $pages[$index]['children']) {
-                        $recursePageList($pages[$index]['children']);
-                    }
-                }
-            };
+                AND spb.layout = "listOfPages"';
+            $stmtSelect = $this->connection->prepare($sqlSelect);
+            $stmtSelect->bindValue('site_copy_id', $siteCopy->id());
+            $pageBlocks = $stmtSelect->executeQuery()->fetchAllAssociative();
+            $sqlUpdate = 'UPDATE site_page_block spb SET spb.data = :data WHERE spb.id = :id';
+            $stmtUpdate = $this->connection->prepare($sqlUpdate);
             foreach ($pageBlocks as $pageBlock) {
+                // Modify the block data.
                 $data = json_decode($pageBlock['data'], true);
                 $pageList = json_decode($data['pagelist'], true);
-
-                echo '<pre>';
-                print_r($pageList);
-                print_r($recursePageList($pageList));
-                exit;
-
-                // @todo: Recurse the $pageList and use $sitePageMap to map [data][id]
-                // and correct the [url]. Then save back to the database.
+                $pageListCopy = $this->recursePageList($pageList, $sitePageMap);
+                $data['pagelist'] = json_encode($pageListCopy);
+                $stmtUpdate->bindValue('data', json_encode($data));
+                $stmtUpdate->bindValue('id', $pageBlock['id']);
+                $stmtUpdate->executeStatement();
             }
 
             // Add homepage to the site. Note that we must add the homepage after
@@ -437,6 +431,24 @@ class CopyResources
             }
         }
         return $links;
+    }
+
+    /**
+     * Recursive function to modify the "listOfPages" block "pagelist" array.
+     *
+     * @param array &$pages
+     * @param array $sitePageMap
+     * @return array
+     */
+    public function recursePageList(array &$pages, array $sitePageMap)
+    {
+        foreach ($pages as $index => &$page) {
+            $page['data']['data']['id'] = $sitePageMap[$page['data']['data']['id']];
+            if (isset($page['children']) && $page['children']) {
+                $page['children'] = $this->recursePageList($page['children'], $sitePageMap);
+            }
+        }
+        return $pages;
     }
 
     /**
