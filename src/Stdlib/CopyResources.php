@@ -169,6 +169,30 @@ class CopyResources
                 $sitePageMap[$sitePage->id()] = $sitePageCopy->id();
             }
 
+            // Set the correct page IDs to "listOfPages" blocks. Normally we'd
+            // modify block data while copying site pages above, but "listOfPages"
+            // blocks reference pages that aren't created until now.
+            $sqlSelect = 'SELECT spb.id, spb.data
+                FROM site_page_block spb
+                INNER JOIN site_page sp ON sp.id = spb.page_id
+                WHERE sp.site_id = :site_copy_id
+                AND spb.layout = "listOfPages"';
+            $stmtSelect = $this->connection->prepare($sqlSelect);
+            $stmtSelect->bindValue('site_copy_id', $siteCopy->id());
+            $pageBlocks = $stmtSelect->executeQuery()->fetchAllAssociative();
+            $sqlUpdate = 'UPDATE site_page_block spb SET spb.data = :data WHERE spb.id = :id';
+            $stmtUpdate = $this->connection->prepare($sqlUpdate);
+            foreach ($pageBlocks as $pageBlock) {
+                // Modify the block data.
+                $data = json_decode($pageBlock['data'], true);
+                $pageList = json_decode($data['pagelist'], true);
+                $pageListCopy = $this->recursePageList($pageList, $sitePageMap);
+                $data['pagelist'] = json_encode($pageListCopy);
+                $stmtUpdate->bindValue('data', json_encode($data));
+                $stmtUpdate->bindValue('id', $pageBlock['id']);
+                $stmtUpdate->executeStatement();
+            }
+
             // Add homepage to the site. Note that we must add the homepage after
             // the page is created above.
             $siteHomepage = $site->homepage();
@@ -407,6 +431,24 @@ class CopyResources
             }
         }
         return $links;
+    }
+
+    /**
+     * Recursive function to modify the "listOfPages" block "pagelist" array.
+     *
+     * @param array &$pages
+     * @param array $sitePageMap
+     * @return array
+     */
+    public function recursePageList(array &$pages, array $sitePageMap)
+    {
+        foreach ($pages as $index => &$page) {
+            $page['data']['data']['id'] = $sitePageMap[$page['data']['data']['id']];
+            if (isset($page['children']) && $page['children']) {
+                $page['children'] = $this->recursePageList($page['children'], $sitePageMap);
+            }
+        }
+        return $pages;
     }
 
     /**
