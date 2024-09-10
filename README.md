@@ -138,7 +138,7 @@ $sharedEventManager->attach(
 );
 ```
 
-# Copyright
+## Copyright
 
 Copy Resources is Copyright © 2021-present Corporation for Digital Scholarship,
 Vienna, Virginia, USA http://digitalscholar.org
