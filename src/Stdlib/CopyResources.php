@@ -222,7 +222,12 @@ class CopyResources
             };
             $this->modifySiteNavigation([$site->id(), $siteCopy->id()], null, $callback);
 
-            // Copy site settings.
+            // Copy site settings. Delete first because some modules auto-populate
+            // settings for new sites during api.create.post, before this callback runs.
+            $sql = 'DELETE FROM site_setting WHERE site_id = :site_copy_id';
+            $stmt = $this->connection->prepare($sql);
+            $stmt->bindValue('site_copy_id', $siteCopy->id());
+            $stmt->executeStatement();
             $sql = 'INSERT INTO site_setting (id, site_id, value)
                 SELECT id, :site_copy_id, value FROM site_setting WHERE site_id = :site_id';
             $stmt = $this->connection->prepare($sql);
