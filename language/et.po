@@ -11,7 +11,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-06-20 13:54-0400\n"
+"POT-Creation-Date: 2026-06-24 14:11-0400\n"
 "PO-Revision-Date: 2024-02-29 11:29+0000\n"
 "Last-Translator: Rivo Zängov <eraser@eraser.ee>, 2024\n"
 "Language-Team: Estonian (https://app.transifex.com/omeka/teams/14184/et/)\n"
@@ -71,14 +71,6 @@ msgstr ""
 msgid "Are you sure you would like to copy this site?"
 msgstr ""
 
-#: src/Form/CopyConfirmForm.php:17
-msgid "Same as original"
-msgstr ""
-
-#: src/Form/CopyConfirmForm.php:28
-msgid "Confirm copy"
-msgstr "Kinnita kopeerimine"
-
 #: src/Controller/Admin/IndexController.php:69
 msgid "Item successfully copied. The copy is below."
 msgstr ""
@@ -101,3 +93,11 @@ msgid ""
 "likely incomplete. The error message is below. Check your Omeka log for the "
 "complete error."
 msgstr ""
+
+#: src/Form/CopyConfirmForm.php:17
+msgid "Same as original"
+msgstr "Sama kui originaal"
+
+#: src/Form/CopyConfirmForm.php:28
+msgid "Confirm copy"
+msgstr "Kinnita kopeerimine"

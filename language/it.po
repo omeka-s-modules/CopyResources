@@ -2,59 +2,66 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
+# 
+# Translators:
+# Giorgio Comai <g@giorgiocomai.eu>, 2024
+# 
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-06-24 14:11-0400\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"PO-Revision-Date: 2024-02-29 11:29+0000\n"
+"Last-Translator: Giorgio Comai <g@giorgiocomai.eu>, 2024\n"
+"Language-Team: Italian (https://app.transifex.com/omeka/teams/14184/it/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
 
 #: Module.php:67 Module.php:68 Module.php:111
 msgid "Copy"
-msgstr ""
+msgstr "Copia"
 
 #: view/common/copy-resources/copy-confirm-item_sets.phtml:2
 msgid "Copy item set"
-msgstr ""
+msgstr "Copia collezione"
 
 #: view/common/copy-resources/copy-confirm-item_sets.phtml:3
 msgid "Are you sure you would like to copy this item set?"
-msgstr ""
+msgstr "Sei sicuro di voler copiare questa collezione?"
 
 #: view/common/copy-resources/copy-confirm-items.phtml:2
 msgid "Copy item"
-msgstr ""
+msgstr "Copia contenuto"
 
 #: view/common/copy-resources/copy-confirm-items.phtml:3
 msgid ""
-"This process will not copy media. If you must copy media, you can use the <a "
-"href=\"https://omeka.org/s/modules/Osii/\" target=\"_blank\">Omeka S Item "
+"This process will not copy media. If you must copy media, you can use the <a"
+" href=\"https://omeka.org/s/modules/Osii/\" target=\"_blank\">Omeka S Item "
 "Importer</a> module."
 msgstr ""
+"Questo processo non copierà media. Se devi copiare media, puoi usare il "
+"modulo <a href=\"https://omeka.org/s/modules/Osii/\" target=\"_blank\">Omeka"
+" S Item Importer</a> ."
 
 #: view/common/copy-resources/copy-confirm-items.phtml:4
 msgid "Are you sure you would like to copy this item?"
-msgstr ""
+msgstr "Sei sicuro di voler copiare questo contenuto?"
 
 #: view/common/copy-resources/copy-confirm-site_pages.phtml:2
 msgid "Copy page"
-msgstr ""
+msgstr "Copia pagina"
 
 #: view/common/copy-resources/copy-confirm-site_pages.phtml:3
 msgid "Are you sure you would like to copy this page?"
-msgstr ""
+msgstr "Sei sicuro di voler copiare questa pagina?"
 
 #: view/common/copy-resources/copy-confirm-sites.phtml:2
 msgid "Copy site"
-msgstr ""
+msgstr "Copia sito"
 
 #: view/common/copy-resources/copy-confirm-sites.phtml:3
 msgid ""
@@ -62,26 +69,30 @@ msgid ""
 "placeholders. You will have to replace them or reorganize your pages and "
 "navigation. Other data added by modules may not carry over at all."
 msgstr ""
+"Blocchi di pagina e collegamenti di navigazione aggiunti dai moduli "
+"potrebbero essere trasferiti come segnaposti invalidi. Dovrai sostituirli o "
+"riorganizzare le tue pagine e la navigazione. Altri dati aggiunti da moduli "
+"potrebbero non essere trasferiti affatto."
 
 #: view/common/copy-resources/copy-confirm-sites.phtml:4
 msgid "Are you sure you would like to copy this site?"
-msgstr ""
+msgstr "Sei sicuro di voler copiare questo sito?"
 
 #: src/Controller/Admin/IndexController.php:69
 msgid "Item successfully copied. The copy is below."
-msgstr ""
+msgstr "Contenuto copiato con successo. La copia è qui sotto."
 
 #: src/Controller/Admin/IndexController.php:73
 msgid "Item set successfully copied. The copy is below."
-msgstr ""
+msgstr "Collezione copiata con successo. La copia è qui sotto."
 
 #: src/Controller/Admin/IndexController.php:77
 msgid "Page successfully copied. The copy is below."
-msgstr ""
+msgstr "Pagina copiata con successo. La copia è qui sotto."
 
 #: src/Controller/Admin/IndexController.php:81
 msgid "Site successfully copied. The copy is below."
-msgstr ""
+msgstr "Sito copiato con successo. La copia è qui sotto."
 
 #: src/Controller/Admin/IndexController.php:86
 msgid ""
@@ -89,11 +100,14 @@ msgid ""
 "likely incomplete. The error message is below. Check your Omeka log for the "
 "complete error."
 msgstr ""
+"C'è stato un errore durante il processo di copia. Se una copia è stata "
+"creata, probabilmente è incompleta. Il messaggio di errore è riportato qui "
+"sotto. Controlla i log di Omeka per vedere l'errore per intero."
 
 #: src/Form/CopyConfirmForm.php:17
 msgid "Same as original"
-msgstr ""
+msgstr "Uguale all'originale"
 
 #: src/Form/CopyConfirmForm.php:28
 msgid "Confirm copy"
-msgstr ""
+msgstr "Conferma la copia"

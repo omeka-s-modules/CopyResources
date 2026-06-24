@@ -284,7 +284,7 @@ class CopyResources
      * @param callable $postCallback
      * @return Representation\RepresentationInterface
      */
-    public function createResourceCopy(string $resourceName, Representation\RepresentationInterface $resource, callable $preCallback = null, callable $postCallback = null)
+    public function createResourceCopy(string $resourceName, Representation\RepresentationInterface $resource, ?callable $preCallback = null, ?callable $postCallback = null)
     {
         $jsonLd = json_decode(json_encode($resource), true);
 

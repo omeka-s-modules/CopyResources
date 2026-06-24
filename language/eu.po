@@ -2,59 +2,66 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
+# 
+# Translators:
+# Iametza Interaktiboa, 2024
+# 
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-06-24 14:11-0400\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"PO-Revision-Date: 2024-02-29 11:29+0000\n"
+"Last-Translator: Iametza Interaktiboa, 2024\n"
+"Language-Team: Basque (https://app.transifex.com/omeka/teams/14184/eu/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Language: eu\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: Module.php:67 Module.php:68 Module.php:111
 msgid "Copy"
-msgstr ""
+msgstr "Kopiatu"
 
 #: view/common/copy-resources/copy-confirm-item_sets.phtml:2
 msgid "Copy item set"
-msgstr ""
+msgstr "Kopiatu elementu multzoa"
 
 #: view/common/copy-resources/copy-confirm-item_sets.phtml:3
 msgid "Are you sure you would like to copy this item set?"
-msgstr ""
+msgstr "Ziur zaude elementu multzo hau kopiatu nahi duzula?"
 
 #: view/common/copy-resources/copy-confirm-items.phtml:2
 msgid "Copy item"
-msgstr ""
+msgstr "Kopiatu elementua"
 
 #: view/common/copy-resources/copy-confirm-items.phtml:3
 msgid ""
-"This process will not copy media. If you must copy media, you can use the <a "
-"href=\"https://omeka.org/s/modules/Osii/\" target=\"_blank\">Omeka S Item "
+"This process will not copy media. If you must copy media, you can use the <a"
+" href=\"https://omeka.org/s/modules/Osii/\" target=\"_blank\">Omeka S Item "
 "Importer</a> module."
 msgstr ""
+"Prozesu honek ez du multimedia kopiatuko. Multimedia kopiatu nahi baduzu, <a"
+" href=\"https://omeka.org/s/modules/Osii/\" target=\"_blank\">Omeka S "
+"Elementu Inportazio</a> modulua erabili dezakezu."
 
 #: view/common/copy-resources/copy-confirm-items.phtml:4
 msgid "Are you sure you would like to copy this item?"
-msgstr ""
+msgstr "Ziur zaude elementu hau kopiatu nahi duzula?"
 
 #: view/common/copy-resources/copy-confirm-site_pages.phtml:2
 msgid "Copy page"
-msgstr ""
+msgstr "Kopiatu orrialdea"
 
 #: view/common/copy-resources/copy-confirm-site_pages.phtml:3
 msgid "Are you sure you would like to copy this page?"
-msgstr ""
+msgstr "Ziur zaude orrialde hau kopiatu nahi duzula?"
 
 #: view/common/copy-resources/copy-confirm-sites.phtml:2
 msgid "Copy site"
-msgstr ""
+msgstr "Kopiatu ataria"
 
 #: view/common/copy-resources/copy-confirm-sites.phtml:3
 msgid ""
@@ -62,26 +69,30 @@ msgid ""
 "placeholders. You will have to replace them or reorganize your pages and "
 "navigation. Other data added by modules may not carry over at all."
 msgstr ""
+"Moduluek gehitutako orrialde bloke eta nabigazio estekak leku-marka "
+"desegokiak eduki ditzakete. Ordezkatu egin beharko dituzu edo zure orri zein"
+" nabigazioa berrantolatu. Moduluek gehitutako beste informazioa baliteke ez "
+"ekarri izana."
 
 #: view/common/copy-resources/copy-confirm-sites.phtml:4
 msgid "Are you sure you would like to copy this site?"
-msgstr ""
+msgstr "Ziur zaude atari hau kopiatu nahi duzula?"
 
 #: src/Controller/Admin/IndexController.php:69
 msgid "Item successfully copied. The copy is below."
-msgstr ""
+msgstr "Elementua ongi kopiatu da. Kopia azpian dago."
 
 #: src/Controller/Admin/IndexController.php:73
 msgid "Item set successfully copied. The copy is below."
-msgstr ""
+msgstr "Elementu multzoa ongi kopiatu da. Kopia azpian dago."
 
 #: src/Controller/Admin/IndexController.php:77
 msgid "Page successfully copied. The copy is below."
-msgstr ""
+msgstr "Orrialdea ongi kopiatu da. Kopia azpian dago."
 
 #: src/Controller/Admin/IndexController.php:81
 msgid "Site successfully copied. The copy is below."
-msgstr ""
+msgstr "Ataria ongi kopiatu da. Kopia azpian dago."
 
 #: src/Controller/Admin/IndexController.php:86
 msgid ""
@@ -89,11 +100,14 @@ msgid ""
 "likely incomplete. The error message is below. Check your Omeka log for the "
 "complete error."
 msgstr ""
+"Arazo bat egon da kopiatzeko prozesuan. Kopia sortu bada, ziurrenik osatu "
+"gabe egongo da. Errore mezuan azpian dago. Begiratu zure Omeka log "
+"fitxategia errore osoa ikusteko."
 
 #: src/Form/CopyConfirmForm.php:17
 msgid "Same as original"
-msgstr ""
+msgstr "Jatorrizkoaren berdina"
 
 #: src/Form/CopyConfirmForm.php:28
 msgid "Confirm copy"
-msgstr ""
+msgstr "Baieztatu kopiatzea"

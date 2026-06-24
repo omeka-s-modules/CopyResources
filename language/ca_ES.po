@@ -11,7 +11,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-06-20 13:54-0400\n"
+"POT-Creation-Date: 2026-06-24 14:11-0400\n"
 "PO-Revision-Date: 2024-02-29 11:29+0000\n"
 "Last-Translator: Rubén Alcaraz Martínez <rubenalcarazmartinez@gmail.com>, 2024\n"
 "Language-Team: Catalan (Spain) (https://app.transifex.com/omeka/teams/14184/ca_ES/)\n"
@@ -78,14 +78,6 @@ msgstr ""
 msgid "Are you sure you would like to copy this site?"
 msgstr "Esteu segur que voleu copiar aquest lloc?"
 
-#: src/Form/CopyConfirmForm.php:17
-msgid "Same as original"
-msgstr ""
-
-#: src/Form/CopyConfirmForm.php:28
-msgid "Confirm copy"
-msgstr "Confirma la còpia"
-
 #: src/Controller/Admin/IndexController.php:69
 msgid "Item successfully copied. The copy is below."
 msgstr "El recurs s'ha copiat correctament."
@@ -111,3 +103,11 @@ msgstr ""
 "S'ha produït un error durant el procés de còpia. Si s'ha creat una còpia, és"
 " probable que estigui incompleta. El missatge d'error és a sota. Comproveu "
 "l'error complet al registre d'errors de l'Omeka."
+
+#: src/Form/CopyConfirmForm.php:17
+msgid "Same as original"
+msgstr "Igual que l'original"
+
+#: src/Form/CopyConfirmForm.php:28
+msgid "Confirm copy"
+msgstr "Confirma la còpia"
